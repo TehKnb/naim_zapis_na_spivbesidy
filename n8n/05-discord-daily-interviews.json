@@ -1,0 +1,329 @@
+{
+  "name": "Discord: щоденне нагадування про співбесіди",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "8c0b03fa-34a7-5b27-9f62-7aaf4085b84c",
+      "name": "Щодня о 9:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Час за часовим поясом workflow (Europe/Kyiv)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {},
+      "id": "afa34b52-bd90-5da6-a150-ded37ceb5e5f",
+      "name": "Запустити вручну (тест)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "53254e09-d1aa-5960-919e-fa6300153c79",
+              "name": "TIMEZONE",
+              "value": "Europe/Kyiv",
+              "type": "string"
+            },
+            {
+              "id": "ad726346-10d1-5256-bc95-983ba370f116",
+              "name": "SEND_WHEN_EMPTY",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "5c6bb90a-39f1-56e4-9a40-98cef36ef3f2",
+              "name": "INCLUDE_CLOSED",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "7fa67385-dee9-5803-bf72-08a9bbee4dfe",
+              "name": "ADMIN_PANEL_URL",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "f65d548c-6dba-522e-83d8-912241da5eae",
+      "name": "Конфіг",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        100
+      ],
+      "notes": "SEND_WHEN_EMPTY — писати, коли співбесід немає; ADMIN_PANEL_URL — посилання на сесію (необов'язково)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": []
+        },
+        "returnAll": true
+      },
+      "id": "18df706b-c952-5010-b11d-8e990c97f63c",
+      "name": "DT: усі сесії",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "registration_status",
+              "condition": "neq",
+              "keyValue": "Cancelled"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "e7a405cd-6897-5e0c-abc9-d8749d619d7b",
+      "name": "DT: активні реєстрації",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Responsibles",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": []
+        },
+        "returnAll": true
+      },
+      "id": "f815b9be-6faf-5b61-9087-8587755977ac",
+      "name": "DT: відповідальні",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\n\nconst cfg = $('Конфіг').first().json;\nconst tz = cfg.TIMEZONE || 'Europe/Kyiv';\nconst today = DateTime.now().setZone(tz);\nconst toKyiv = (v) => DateTime.fromJSDate(new Date(v)).setZone(tz);\n\n// Активні реєстрації (без Cancelled) за сесіями\nconst counts = {};\nfor (const p of rows($('DT: активні реєстрації').all())) counts[p.session_id] = (counts[p.session_id] || 0) + 1;\n\n// Відповідальні: employee_id → { name, discord_id }\nconst people = new Map(rows($('DT: відповідальні').all()).map((r) => [Number(r.employee_id), r]));\nconst parseIds = (v) => [...new Set(String(v === null || v === undefined ? '' : v).split(/[^0-9]+/).filter(Boolean).map(Number))];\n// Тег у Discord: <@ID>. Без discord_id — лише ім'я жирним.\nconst mention = (id) => {\n  const r = people.get(id);\n  if (!r) return `співробітник #${id}`;\n  const did = r.discord_id === null || r.discord_id === undefined ? '' : String(r.discord_id).trim();\n  return /^\\d+$/.test(did) ? `<@${did}>` : `**${String(r.name || '').trim() || '#' + id}**`;\n};\n\nconst sessions = rows($('DT: усі сесії').all())\n  .filter((s) => s.start_date)\n  .map((s) => ({ s, start: toKyiv(s.start_date) }))\n  .filter(({ start }) => start.isValid && start.hasSame(today, 'day'))\n  .filter(({ s }) => cfg.INCLUDE_CLOSED !== false || s.status !== 'Closed')\n  .sort((a, b) => a.start.toMillis() - b.start.toMillis());\n\nconst dateTitle = today.setLocale('uk').toFormat('cccc, d MMMM');\nif (!sessions.length) {\n  if (cfg.SEND_WHEN_EMPTY !== true) return []; // нічого не надсилаємо\n  return [{ json: { content: `📅 **Співбесіди на сьогодні (${dateTitle})**\\nСьогодні співбесід немає.` } }];\n}\n\nconst base = String(cfg.ADMIN_PANEL_URL || '').trim().replace(/\\/+$/, '');\nconst blocks = sessions.map(({ s, start }) => {\n  const max = Number(s.max_participants) || 0;\n  const count = counts[s.session_id] || 0;\n  const ids = parseIds(s.responsible_ids);\n  const lines = [\n    `🕒 **${start.toFormat('HH:mm')}** · ${s.pipeline_name || s.session_name || 'Співбесіда'}${s.status === 'Closed' ? ' · 🔒 закрита' : ''}`,\n    `👥 Записано: ${count}${max ? ' з ' + max : ''}`,\n    `👤 Відповідальні: ${ids.length ? ids.map(mention).join(', ') : '⚠️ не призначено'}`,\n  ];\n  if (base) lines.push(`🔗 <${base}/sessions/${encodeURIComponent(s.session_id)}>`);\n  return lines.join('\\n');\n});\n\n// Discord: до 2000 символів на повідомлення — ділимо за сесіями\nconst header = `📅 **Співбесіди на сьогодні (${dateTitle})** — ${sessions.length}`;\nconst LIMIT = 1900;\nconst messages = [];\nlet cur = header;\nfor (const b of blocks) {\n  if ((cur + '\\n\\n' + b).length > LIMIT) { messages.push(cur); cur = '📅 **Співбесіди на сьогодні (продовження)**'; }\n  cur += '\\n\\n' + b;\n}\nmessages.push(cur);\nreturn messages.map((content) => ({ json: { content } }));\n"
+      },
+      "id": "87a7b38e-6e8c-5038-8e0f-40a373987afe",
+      "name": "Повідомлення на сьогодні",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        100
+      ],
+      "notes": "Сесії, що починаються сьогодні (Europe/Kyiv), за часом",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/ВСТАВТЕ_ID/ВСТАВТЕ_TOKEN",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $json.content, allowed_mentions: { parse: ['users'] } }) }}",
+        "options": {
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          }
+        }
+      },
+      "id": "94cea724-fd07-593d-844f-7fc9a4085d52",
+      "name": "Discord: надіслати повідомлення",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "notes": "Вставте адресу webhook каналу Discord",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "content": "## Щоденне нагадування в Discord про сьогоднішні співбесіди\nЩодня о **9:00 за Києвом** бере з **Interview Sessions** сесії, що починаються сьогодні, і надсилає в канал Discord: час, воронку, скільки записано і відповідальних із тегом `<@discord_id>`.\n\n**Налаштування:**\n1. У вузлі **Discord: надіслати повідомлення** замініть URL на адресу webhook каналу (Discord → налаштування каналу → Інтеграції → Webhooks → Copy Webhook URL).\n2. За потреби змініть «Конфіг»: `SEND_WHEN_EMPTY` (писати «співбесід немає»), `INCLUDE_CLOSED` (показувати закриті), `ADMIN_PANEL_URL` (адреса адмінпанелі для посилань, напр. `https://….up.railway.app`).\n3. Перевірте кнопкою **Execute workflow** (тригер «Запустити вручну»), потім активуйте workflow.\n\nВідповідальні — таблиця **Interview Responsibles**. Співробітник без `discord_id` показується лише ім'ям, без тегу. Якщо повідомлення довше за 2000 символів, воно ділиться на кілька.",
+        "height": 380,
+        "width": 1000,
+        "color": 4
+      },
+      "id": "13883259-c049-56d7-be81-97266854a8f6",
+      "name": "Опис",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -420
+      ]
+    }
+  ],
+  "connections": {
+    "Щодня о 9:00": {
+      "main": [
+        [
+          {
+            "node": "Конфіг",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Запустити вручну (тест)": {
+      "main": [
+        [
+          {
+            "node": "Конфіг",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Конфіг": {
+      "main": [
+        [
+          {
+            "node": "DT: усі сесії",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: усі сесії": {
+      "main": [
+        [
+          {
+            "node": "DT: активні реєстрації",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: активні реєстрації": {
+      "main": [
+        [
+          {
+            "node": "DT: відповідальні",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: відповідальні": {
+      "main": [
+        [
+          {
+            "node": "Повідомлення на сьогодні",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Повідомлення на сьогодні": {
+      "main": [
+        [
+          {
+            "node": "Discord: надіслати повідомлення",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Kyiv",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

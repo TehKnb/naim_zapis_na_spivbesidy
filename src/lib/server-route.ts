@@ -35,8 +35,17 @@ export function parseSessionInput(body: Record<string, unknown>, { requireFuture
   if (body.pipelineId === null || body.pipelineId === undefined || body.pipelineId === '' || !Number.isInteger(pipelineId) || pipelineId <= 0) {
     fields.pipelineId = 'Оберіть воронку';
   }
+  // Відповідальні: масив ID співробітників (необов'язково). Наявність у довіднику перевіряє n8n
+  let responsibleIds: number[] | undefined;
+  if (body.responsibleIds !== undefined && body.responsibleIds !== null) {
+    const raw = body.responsibleIds;
+    const ids = Array.isArray(raw) ? [...new Set(raw.map(Number))] : [];
+    if (!Array.isArray(raw) || ids.some((n) => !Number.isInteger(n) || n <= 0)) fields.responsibleIds = 'Некоректний список відповідальних';
+    else if (ids.length > 50) fields.responsibleIds = 'Занадто багато відповідальних';
+    else responsibleIds = ids;
+  }
   if (Object.keys(fields).length > 0 || !conv.ok) {
     throw new ApiFailure(400, 'VALIDATION_ERROR', Object.values(fields)[0] ?? 'Перевірте дані форми', { fields });
   }
-  return { startDate: conv.iso, maxParticipants: max, pipelineId };
+  return { startDate: conv.iso, maxParticipants: max, pipelineId, ...(responsibleIds ? { responsibleIds } : {}) };
 }

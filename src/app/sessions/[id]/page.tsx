@@ -1,10 +1,11 @@
 'use client';
 
-import { AlertTriangle, ArrowLeft, CalendarDays, Clock, Funnel, Lock, Pencil, Users } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, Clock, Funnel, Lock, Pencil, UserRound, Users } from 'lucide-react';
 import Link from 'next/link';
 import { use, useState } from 'react';
 import { toast } from 'sonner';
 import { PipelineName } from '@/components/pipeline-filter';
+import { ResponsibleAvatar, sessionResponsibles } from '@/components/responsibles';
 import { PipelineStripe } from '@/components/session-card';
 import { useSessionForm } from '@/components/session-form';
 import { Button, Card, EmptyState, ErrorState, Modal, Pill, ProgressBar, Skeleton, StatusBadge } from '@/components/ui';
@@ -30,6 +31,32 @@ function Metric({ label, value, icon: Icon, tone = 'bg-neutral-50' }: { label: s
     <div className={`min-w-0 rounded-xl px-4 py-3 ${tone}`}>
       <p className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">{Icon && <Icon className="h-3.5 w-3.5" />}{label}</p>
       <p className="mt-1 text-lg font-bold text-ink">{value}</p>
+    </div>
+  );
+}
+
+function ResponsiblesBlock({ session, onEdit }: { session: Session; onEdit: () => void }) {
+  const people = sessionResponsibles(session);
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted"><UserRound className="h-3.5 w-3.5" /> Відповідальні</p>
+      {people.length ? (
+        <ul className="flex flex-wrap gap-2">
+          {people.map((p) => (
+            <li key={p.id} className="inline-flex h-9 items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3 text-sm font-medium text-ink"
+              title={p.missing ? 'Співробітника немає в довіднику' : !p.discordLinked ? 'Немає Discord ID: у щоденному повідомленні буде лише ім\u02bcя' : undefined}>
+              <ResponsibleAvatar person={p} className="ring-0" />
+              <span className={p.missing ? 'text-ink-muted line-through' : undefined}>{p.name}</span>
+              {!p.discordLinked && !p.missing && <span className="rounded bg-neutral-100 px-1 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">без Discord</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-ink-muted">
+          Не призначено.{' '}
+          <button type="button" onClick={onEdit} className="font-semibold text-primary hover:underline">Призначити</button>
+        </p>
+      )}
     </div>
   );
 }
@@ -179,6 +206,7 @@ export default function SessionDetailsPage({ params }: { params: Promise<{ id: s
               </div>
               <ProgressBar session={data.session} className="h-2.5" />
             </div>
+            <ResponsiblesBlock session={data.session} onEdit={() => openEdit(data.session)} />
           </Card>
 
           <Card className="mt-6 overflow-hidden">

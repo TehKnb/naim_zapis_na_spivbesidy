@@ -1,0 +1,233 @@
+{
+  "name": "Налаштування: відповідальні за співбесіди",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "65e24ea3-9a8c-50ae-9d26-554e6b785483",
+      "name": "Запустити один раз",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "Interview Responsibles",
+        "columns": {
+          "column": [
+            {
+              "name": "employee_id",
+              "type": "number"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "discord_id",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "id": "cd2740b6-d833-57c1-aa9d-7a21c13949c4",
+      "name": "Створити Interview Responsibles",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        0
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Responsibles",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": []
+        },
+        "returnAll": true
+      },
+      "id": "0c77fce2-e440-5a4d-8139-d6d38ad51235",
+      "name": "DT: наявні співробітники",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\n\n// Список співробітників, які можуть бути відповідальними за співбесіди.\n// id — ID співробітника в KeyCRM (ключ, за яким сесія пам'ятає відповідальних),\n// discord_id — ID користувача Discord для тегу <@…> (рядком! число такої довжини JavaScript округлює). null — без тегу.\nconst EMPLOYEES = [\n  {\n    \"id\": 13,\n    \"name\": \"Юлія Максименко\",\n    \"discord_id\": \"1567574546117038182\"\n  },\n  {\n    \"id\": 39,\n    \"name\": \"Анна Якуніна\",\n    \"discord_id\": \"729036900181999628\"\n  },\n  {\n    \"id\": 42,\n    \"name\": \"Іванна Креховецька\",\n    \"discord_id\": \"1085925544798990386\"\n  },\n  {\n    \"id\": 47,\n    \"name\": \"Олександра Пʼявкіна\",\n    \"discord_id\": \"1570037829789024299\"\n  },\n  {\n    \"id\": 49,\n    \"name\": \"Евеліна Лідавець\",\n    \"discord_id\": \"1549733595524894730\"\n  },\n  {\n    \"id\": 52,\n    \"name\": \"Ольга Рішняк\",\n    \"discord_id\": null\n  },\n  {\n    \"id\": 53,\n    \"name\": \"Юлія Воробей\",\n    \"discord_id\": \"1570080045538607155\"\n  },\n  {\n    \"id\": 55,\n    \"name\": \"Олександра Масюк\",\n    \"discord_id\": \"1570079277410680966\"\n  },\n  {\n    \"id\": 57,\n    \"name\": \"Єлизавета Мулявіна\",\n    \"discord_id\": \"1562384585981960263\"\n  },\n  {\n    \"id\": 7,\n    \"name\": \"Марта Буравицька\",\n    \"discord_id\": \"1356575203378991128\"\n  }\n];\nconst have = new Set(rows($input.all()).map((r) => Number(r.employee_id)));\nreturn EMPLOYEES.filter((e) => !have.has(Number(e.id))).map((e) => ({ json: {\n  employee_id: Number(e.id),\n  name: String(e.name).trim(),\n  discord_id: e.discord_id === null || e.discord_id === undefined ? '' : String(e.discord_id).trim(),\n} }));\n"
+      },
+      "id": "c88bdbe1-6a5a-5208-9b58-f989080dc1d3",
+      "name": "Нові співробітники",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "notes": "Додає лише тих, кого ще немає в таблиці (за employee_id)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Responsibles",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "employee_id": "={{ $json.employee_id }}",
+            "name": "={{ $json.name }}",
+            "discord_id": "={{ $json.discord_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "employee_id",
+              "displayName": "employee_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "discord_id",
+              "displayName": "discord_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4dffefe0-50e0-53c2-b3ba-a92dc298d654",
+      "name": "DT: додати співробітника",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Одноразово: відповідальні за співбесіди\n1. Натисніть **Execute workflow**. Буде створено таблицю **Interview Responsibles** (`employee_id` number, `name`, `discord_id`) і додано співробітників зі списку у вузлі «Нові співробітники».\n2. Вручну додайте в таблицю **Interview Sessions** колонку `responsible_ids` (тип **String**). Там зберігаються ID відповідальних через кому, напр. `13,39`.\n\nПовторний запуск безпечний: додаються лише ті, кого ще немає в таблиці (за `employee_id`). Змінити ім'я чи Discord ID наявного співробітника — прямо в таблиці. Новий співробітник — новий рядок у таблиці (або допишіть його в список і запустіть ще раз).\n`discord_id` порожній — співробітника можна призначити, але в Discord буде лише ім'я без тегу.\nПісля налаштування цей workflow можна видалити.",
+        "height": 400,
+        "width": 900,
+        "color": 4
+      },
+      "id": "51084130-b57c-5fde-8756-d5e8b99a9239",
+      "name": "Опис",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -440
+      ]
+    }
+  ],
+  "connections": {
+    "Запустити один раз": {
+      "main": [
+        [
+          {
+            "node": "Створити Interview Responsibles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Створити Interview Responsibles": {
+      "main": [
+        [
+          {
+            "node": "DT: наявні співробітники",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: наявні співробітники": {
+      "main": [
+        [
+          {
+            "node": "Нові співробітники",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Нові співробітники": {
+      "main": [
+        [
+          {
+            "node": "DT: додати співробітника",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Kyiv",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

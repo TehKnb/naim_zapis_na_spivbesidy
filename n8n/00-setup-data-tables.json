@@ -46,6 +46,10 @@
             {
               "name": "pipeline_name",
               "type": "string"
+            },
+            {
+              "name": "responsible_ids",
+              "type": "string"
             }
           ]
         },
@@ -116,9 +120,44 @@
     },
     {
       "parameters": {
-        "content": "## Створення n8n Data Tables (один раз)\nНатисніть **Execute workflow**. Буде створено дві таблиці:\n- **Interview Sessions**: session_id, session_name, start_date (date), max_participants (number), status, pipeline_id (number), pipeline_name\n- **Interview Participants**: keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error\n\nСистемні колонки `id`, `createdAt`, `updatedAt` n8n додає сам. Повторний запуск безпечний: наявні таблиці не змінюються.\nНе створюйте інших таблиць, у назві яких є «Interview Sessions» або «Interview Participants» (наприклад, копій): workflow знаходять таблиці за назвою.",
-        "height": 300,
-        "width": 620,
+        "resource": "table",
+        "operation": "create",
+        "tableName": "Interview Responsibles",
+        "columns": {
+          "column": [
+            {
+              "name": "employee_id",
+              "type": "number"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "discord_id",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "id": "1011e3b4-74c5-5dc9-82a8-b1b873291e09",
+      "name": "Створити Interview Responsibles",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "content": "## Створення n8n Data Tables (один раз)\nНатисніть **Execute workflow**. Буде створено три таблиці:\n- **Interview Sessions**: session_id, session_name, start_date (date), max_participants (number), status, pipeline_id (number), pipeline_name, responsible_ids\n- **Interview Participants**: keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error\n- **Interview Responsibles**: employee_id (number), name, discord_id — заповнює workflow «Налаштування: відповідальні за співбесіди»\n\nСистемні колонки `id`, `createdAt`, `updatedAt` n8n додає сам. Повторний запуск безпечний: наявні таблиці не змінюються.\nНе створюйте інших таблиць, у назві яких є «Interview Sessions» або «Interview Participants» (наприклад, копій): workflow знаходять таблиці за назвою.",
+        "height": 320,
+        "width": 840,
         "color": 4
       },
       "id": "5381673d-d906-5283-9209-54b7f4838b44",
@@ -127,7 +166,7 @@
       "typeVersion": 1,
       "position": [
         -60,
-        -360
+        -380
       ]
     }
   ],
@@ -148,6 +187,17 @@
         [
           {
             "node": "Створити Interview Participants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Створити Interview Participants": {
+      "main": [
+        [
+          {
+            "node": "Створити Interview Responsibles",
             "type": "main",
             "index": 0
           }

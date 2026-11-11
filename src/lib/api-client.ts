@@ -1,6 +1,6 @@
 'use client';
 
-import type { ApiErrorBody, Pipeline, Session, SessionDetails, SessionInput } from './types';
+import type { ApiErrorBody, Pipeline, Responsible, Session, SessionDetails, SessionInput } from './types';
 
 export class ClientApiError extends Error {
   constructor(
@@ -40,6 +40,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   list: () => request<{ sessions: Session[] }>('/api/sessions'),
   pipelines: () => request<{ pipelines: Pipeline[] }>('/api/pipelines'),
+  responsibles: () => request<{ responsibles: Responsible[] }>('/api/responsibles'),
   get: (id: string) => request<SessionDetails>(`/api/sessions/${encodeURIComponent(id)}`),
   create: (input: SessionInput) => request<{ session: Session }>('/api/sessions', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: SessionInput) =>

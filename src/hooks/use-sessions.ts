@@ -7,6 +7,7 @@ import type { Session, SessionDetails, SessionInput } from '@/lib/types';
 export const keys = {
   sessions: ['sessions'] as const,
   pipelines: ['pipelines'] as const,
+  responsibles: ['responsibles'] as const,
   session: (id: string) => ['session', id] as const,
 };
 
@@ -18,6 +19,11 @@ export function useSessions() {
 /** Довідник воронок (форма, фільтри). Змінюється рідко — у n8n, вузол «Конфіг». */
 export function usePipelines() {
   return useQuery({ queryKey: keys.pipelines, queryFn: async () => (await api.pipelines()).pipelines, staleTime: 5 * 60_000 });
+}
+
+/** Співробітники, яких можна призначити відповідальними (n8n таблиця Interview Responsibles). */
+export function useResponsibles() {
+  return useQuery({ queryKey: keys.responsibles, queryFn: async () => (await api.responsibles()).responsibles, staleTime: 5 * 60_000 });
 }
 
 export function useSession(id: string) {

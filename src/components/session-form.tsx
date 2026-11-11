@@ -1,15 +1,16 @@
 'use client';
 
-import { CalendarDays, ChevronDown, Clock, Funnel, Info, Users } from 'lucide-react';
+import { CalendarDays, ChevronDown, Clock, Funnel, Info, UserRound, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useCreateSession, usePipelines, useUpdateSession } from '@/hooks/use-sessions';
+import { useCreateSession, usePipelines, useResponsibles, useUpdateSession } from '@/hooks/use-sessions';
 import { ClientApiError } from '@/lib/api-client';
 import { pluralCandidates } from '@/lib/session-utils';
 import { localPartsToUtc, nowKyiv, previewSessionName, toLocalParts } from '@/lib/time';
-import type { Session, SessionInput } from '@/lib/types';
+import type { Session, SessionInput, SessionResponsible } from '@/lib/types';
 import { pipelineColor } from '@/lib/pipeline-colors';
+import { ResponsiblePicker } from './responsibles';
 import { Button, cx, Modal } from './ui';
 
 type FormState = { mode: 'create' } | { mode: 'edit'; session: Session };
@@ -39,14 +40,18 @@ export function SessionFormProvider({ children }: { children: React.ReactNode })
 function initialValues(state: FormState) {
   if (state.mode === 'edit') {
     const { date, time } = toLocalParts(state.session.startDate);
-    return { date, time, max: String(state.session.maxParticipants), pipeline: state.session.pipelineId ? String(state.session.pipelineId) : '' };
+    return {
+      date, time, max: String(state.session.maxParticipants), pipeline: state.session.pipelineId ? String(state.session.pipelineId) : '',
+      responsibles: state.session.responsibleIds ?? (state.session.responsibles ?? []).map((r) => r.id),
+    };
   }
   const t = nowKyiv().plus({ days: 1 });
-  return { date: t.toFormat('yyyy-LL-dd'), time: '10:00', max: '10', pipeline: '' };
+  return { date: t.toFormat('yyyy-LL-dd'), time: '10:00', max: '10', pipeline: '', responsibles: [] as number[] };
 }
 
-type Errors = Partial<Record<'date' | 'time' | 'maxParticipants' | 'pipelineId', string>>;
+type Errors = Partial<Record<'date' | 'time' | 'maxParticipants' | 'pipelineId' | 'responsibleIds', string>>;
 const PIPELINE_ERRORS = ['PIPELINE_REQUIRED', 'UNKNOWN_PIPELINE', 'PIPELINE_LOCKED'];
+const RESPONSIBLE_ERRORS = ['UNKNOWN_RESPONSIBLE', 'INVALID_RESPONSIBLES'];
 
 function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () => void }) {
   const router = useRouter();
@@ -55,6 +60,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
   const [time, setTime] = useState(init.time);
   const [max, setMax] = useState(init.max);
   const [pipeline, setPipeline] = useState(init.pipeline);
+  const [responsibleIds, setResponsibleIds] = useState<number[]>(init.responsibles);
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -75,6 +81,14 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
     }
     return list;
   }, [pipelinesQuery.data, session]);
+  const responsiblesQuery = useResponsibles();
+  const responsibleOptions = useMemo(() => {
+    const list: SessionResponsible[] = [...(responsiblesQuery.data || [])];
+    // Відповідальний сесії, якого прибрали з довідника, — показуємо, щоб можна було зняти
+    for (const r of session?.responsibles ?? []) if (!list.some((x) => x.id === r.id)) list.push({ ...r, missing: true });
+    return list;
+  }, [responsiblesQuery.data, session]);
+  const noDiscord = responsibleOptions.filter((r) => responsibleIds.includes(r.id) && !r.discordLinked && !r.missing);
   const selectedPipeline = pipelineOptions.find((p) => String(p.id) === pipeline);
   const preview = previewSessionName(date, time, selectedPipeline?.name);
   const minDate = nowKyiv().toFormat('yyyy-LL-dd');
@@ -105,7 +119,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length) return;
-    const input: SessionInput = { date, time, maxParticipants: Number(max), pipelineId: Number(pipeline) };
+    const input: SessionInput = { date, time, maxParticipants: Number(max), pipelineId: Number(pipeline), responsibleIds };
     try {
       const { session: saved } = await mutation.mutateAsync(input);
       toast.success(isEdit ? 'Зміни збережено' : 'Співбесіду створено', {
@@ -120,6 +134,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
         if (err.code === 'CAPACITY_BELOW_REGISTERED') setErrors({ maxParticipants: err.message });
         else if (err.code === 'START_IN_PAST') setErrors({ date: err.message });
         else if (PIPELINE_ERRORS.includes(err.code)) setErrors({ pipelineId: err.message });
+        else if (RESPONSIBLE_ERRORS.includes(err.code)) setErrors({ responsibleIds: err.message });
         else if (Object.keys(f).length) setErrors(f);
         else setFormError(err.message);
       } else setFormError('Не вдалося зберегти. Спробуйте ще раз.');
@@ -174,6 +189,36 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
             <p className="mt-1.5 text-xs text-ink-muted">Сюди записуватимуться кандидати, яких у цій воронці KeyCRM перевели у «Відібрано».</p>
           )}
         </label>
+        <div>
+          <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-ink">
+            <UserRound className="h-4 w-4 text-ink-muted" /> Відповідальні
+            {responsibleIds.length > 0 && <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-white">{responsibleIds.length}</span>}
+          </span>
+          {responsiblesQuery.isLoading ? (
+            <p className="text-sm text-ink-soft">Завантаження співробітників…</p>
+          ) : responsibleOptions.length > 0 ? (
+            <ResponsiblePicker options={responsibleOptions} value={responsibleIds} disabled={pending}
+              onToggle={(id) => {
+                setResponsibleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+                setErrors((x) => ({ ...x, responsibleIds: undefined }));
+              }} />
+          ) : !responsiblesQuery.isError ? (
+            <p className="text-sm text-ink-soft">Список співробітників порожній. Додайте їх у таблицю Interview Responsibles у n8n.</p>
+          ) : null}
+          {err('responsibleIds')}
+          {responsiblesQuery.isError && (
+            <p className="mt-1.5 text-xs text-danger" role="alert">
+              {responsiblesQuery.error instanceof ClientApiError ? responsiblesQuery.error.message : 'Не вдалося завантажити список співробітників.'}{' '}
+              <button type="button" onClick={() => responsiblesQuery.refetch()} className="font-medium underline">Спробувати ще раз</button>
+            </p>
+          )}
+          {!errors.responsibleIds && !responsiblesQuery.isError && (
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Можна обрати кількох. Їх тегнуть у Discord у щоденному повідомленні о 9:00 в день співбесіди.
+              {noDiscord.length > 0 && <> Без Discord ID ({noDiscord.map((r) => r.name).join(', ')}) — лише ім&apos;я, без тегу.</>}
+            </p>
+          )}
+        </div>
         <div className="grid grid-cols-1 gap-4 xs:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-ink"><CalendarDays className="h-4 w-4 text-ink-muted" /> Дата</span>

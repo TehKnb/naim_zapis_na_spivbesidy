@@ -4,6 +4,7 @@ import { Armchair, ArrowRight, CalendarCheck2, CalendarClock, CalendarDays, Circ
 import Link from 'next/link';
 import { PipelineDot } from '@/components/pipeline-filter';
 import { SessionCard } from '@/components/session-card';
+import { ResponsibleSummary } from '@/components/responsibles';
 import { useSessionForm } from '@/components/session-form';
 import { Button, Card, EmptyState, ErrorState, PageHeader, ProgressBar, SectionLabel, Skeleton, StatusBadge, cx } from '@/components/ui';
 import { useSessions } from '@/hooks/use-sessions';
@@ -57,6 +58,7 @@ function NextSession({ session }: { session: Session }) {
             <span className="inline-flex items-center gap-1.5"><Clock className="h-4 w-4" />{formatTime(session.startDate)}</span>
             <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4" />{session.currentCount} / {session.maxParticipants} · {pluralSeats(session.availableSeats)}</span>
           </p>
+          <ResponsibleSummary session={session} full className="mt-3 text-[15px] text-ink" />
           <ProgressBar session={session} className="mt-4 h-2 max-w-md" />
         </div>
         <div className="flex flex-none gap-2">

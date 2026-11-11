@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { CalendarView } from '@/components/calendar-view';
 import { matchesPipeline, PipelineFilter, type PipelineFilterValue } from '@/components/pipeline-filter';
+import { ResponsibleStack, sessionResponsibles, shortName } from '@/components/responsibles';
 import { DateTile, PipelineStripe, SessionActions, SessionCard } from '@/components/session-card';
 import { pipelineColor } from '@/lib/pipeline-colors';
 import { Card, EmptyState, ErrorState, PageHeader, ProgressBar, Skeleton, StatusBadge, cx } from '@/components/ui';
@@ -36,10 +37,23 @@ function matches(s: Session, f: Filter) {
   return st === f; // open / full — лише майбутні
 }
 
+const GRID = 'grid-cols-[minmax(0,1fr)_64px_minmax(150px,210px)_minmax(150px,210px)_112px_72px]';
+
+function Responsibles({ s }: { s: Session }) {
+  const people = sessionResponsibles(s);
+  if (!people.length) return <span className="text-sm text-ink-soft">Не призначено</span>;
+  return (
+    <span className="flex min-w-0 items-center gap-2 text-sm text-ink" title={people.map((p) => p.name).join(', ')}>
+      <ResponsibleStack people={people} max={2} />
+      <span className="truncate">{people.length === 1 ? people[0].name : people.map((p) => shortName(p.name)).join(', ')}</span>
+    </span>
+  );
+}
+
 function SessionRow({ s }: { s: Session }) {
   const muted = ['past', 'closed'].includes(displayState(s));
   return (
-    <div className="relative grid grid-cols-[minmax(0,1fr)_72px_minmax(180px,240px)_112px_72px] items-center gap-4 py-3 pl-6 pr-4 transition-colors hover:bg-neutral-50 lg:gap-6">
+    <div className={cx('relative grid items-center gap-4 py-3 pl-6 pr-4 transition-colors hover:bg-neutral-50 lg:gap-6', GRID)}>
       <PipelineStripe session={s} className="inset-y-2 rounded-r-full" />
       <Link href={`/sessions/${s.id}`} className="flex min-w-0 items-center gap-3 rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20">
         <DateTile iso={s.startDate} muted={muted} color={pipelineColor(s.pipelineId)} />
@@ -49,6 +63,7 @@ function SessionRow({ s }: { s: Session }) {
         </div>
       </Link>
       <span className="flex items-center gap-1.5 text-sm text-ink"><Clock className="h-4 w-4 text-ink-muted" />{formatTime(s.startDate)}</span>
+      <Responsibles s={s} />
       <div className="min-w-0">
         <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
           <span className="flex items-center gap-1 font-semibold text-ink"><Users className="h-3.5 w-3.5 text-ink-muted" />{s.currentCount}/{s.maxParticipants}</span>
@@ -76,7 +91,8 @@ export default function AllSessionsPage() {
     const needle = q.trim().toLowerCase();
     const list = inPipeline.filter((s) => matches(s, filter)).filter((s) => {
       if (!needle) return true;
-      const hay = `${s.name} ${s.pipelineName} ${formatWeekday(s.startDate)} ${formatDate(s.startDate)} ${formatTime(s.startDate)}`.toLowerCase();
+      const people = sessionResponsibles(s).map((p) => p.name).join(' ');
+      const hay = `${s.name} ${s.pipelineName} ${people} ${formatWeekday(s.startDate)} ${formatDate(s.startDate)} ${formatTime(s.startDate)}`.toLowerCase();
       return hay.includes(needle);
     });
     return sort === 'upcoming' ? sortUpcomingFirst(list) : sortByDate(list, sort);
@@ -106,7 +122,7 @@ export default function AllSessionsPage() {
         <PipelineFilter value={pipeline} onChange={setPipeline} className="md:w-64 md:flex-none" />
         <div className="relative flex-1 md:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Пошук за воронкою чи датою" aria-label="Пошук"
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Пошук: воронка, дата, відповідальний" aria-label="Пошук"
             className="h-10 w-full rounded-lg border border-line-strong bg-surface pl-9 pr-8 text-sm text-ink outline-none placeholder:text-ink-soft focus:border-primary focus:ring-4 focus:ring-primary/15" />
           {q && <button onClick={() => setQ('')} aria-label="Очистити пошук" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-ink-soft hover:text-ink"><X className="h-4 w-4" /></button>}
         </div>
@@ -149,8 +165,8 @@ export default function AllSessionsPage() {
         ) : (
           <>
             <div className="hidden lg:block">
-              <div className="grid grid-cols-[minmax(0,1fr)_72px_minmax(180px,240px)_112px_72px] gap-4 border-b border-line bg-neutral-50 py-2.5 pl-6 pr-4 text-xs font-semibold uppercase tracking-wide text-ink-muted lg:gap-6">
-                <span>Воронка і дата</span><span>Час</span><span>Заповненість</span><span>Статус</span><span />
+              <div className={cx('grid gap-4 border-b border-line bg-neutral-50 py-2.5 pl-6 pr-4 text-xs font-semibold uppercase tracking-wide text-ink-muted lg:gap-6', GRID)}>
+                <span>Воронка і дата</span><span>Час</span><span>Відповідальні</span><span>Заповненість</span><span>Статус</span><span />
               </div>
               <div className="divide-y divide-line">{visible.map((s) => <SessionRow key={s.id} s={s} />)}</div>
             </div>

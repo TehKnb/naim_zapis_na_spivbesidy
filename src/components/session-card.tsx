@@ -6,6 +6,7 @@ import { pipelineColor, tint } from '@/lib/pipeline-colors';
 import { displayState, pluralSeats } from '@/lib/session-utils';
 import { formatDate, formatTime, formatWeekdayShort, kyiv } from '@/lib/time';
 import type { Session } from '@/lib/types';
+import { ResponsibleSummary } from './responsibles';
 import { useSessionForm } from './session-form';
 import { IconButton, ProgressBar, StatusBadge, cx } from './ui';
 
@@ -71,6 +72,7 @@ export function SessionCard({ session }: { session: Session; showName?: boolean 
         <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />{formatWeekdayShort(session.startDate)}, {formatDate(session.startDate)}</span>
         <span className="inline-flex items-center gap-1.5"><Clock className="h-4 w-4" />{formatTime(session.startDate)}</span>
       </p>
+      <ResponsibleSummary session={session} className="mt-3 text-sm text-ink" />
       <div className="mt-auto pt-4">
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="flex items-center gap-1.5 font-semibold text-ink"><Users className="h-4 w-4 text-ink-muted" /> {session.currentCount} / {session.maxParticipants}</span>
