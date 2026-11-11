@@ -10,7 +10,7 @@ export const keys = {
   session: (id: string) => ['session', id] as const,
 };
 
-/** Один спільний кеш для «Огляду», «Календаря» і «Усіх співбесід» — оновлення узгоджене на всіх вкладках. */
+/** Один спільний кеш для «Огляду» і «Усіх співбесід» — оновлення узгоджене на всіх вкладках. */
 export function useSessions() {
   return useQuery({ queryKey: keys.sessions, queryFn: async () => (await api.list()).sessions });
 }

@@ -12,7 +12,7 @@ export function matchesPipeline(s: Session, value: PipelineFilterValue): boolean
   return value === 'all' || String(s.pipelineId ?? '') === value;
 }
 
-/** Фільтр співбесід за воронкою («Усі співбесіди», «Календар»). */
+/** Фільтр співбесід за воронкою («Усі співбесіди»: список і календар). */
 export function PipelineFilter({ value, onChange, className }: { value: PipelineFilterValue; onChange: (v: PipelineFilterValue) => void; className?: string }) {
   const { data: pipelines, isError } = usePipelines();
   return (

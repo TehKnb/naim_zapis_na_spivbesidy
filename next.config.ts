@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   eslint: { ignoreDuringBuilds: true },
+  // Розділ «Календар» прибрано: календар є в «Усіх співбесідах»
+  async redirects() {
+    return [{ source: '/calendar', destination: '/sessions', permanent: false }];
+  },
   async headers() {
     return [
       {

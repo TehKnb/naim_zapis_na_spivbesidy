@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarCheck2, CalendarDays, LayoutDashboard, List, Menu, Plus, X } from 'lucide-react';
+import { CalendarCheck2, LayoutDashboard, List, Menu, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -9,7 +9,6 @@ import { Button, cx } from './ui';
 
 const NAV = [
   { href: '/', label: 'Огляд', icon: LayoutDashboard },
-  { href: '/calendar', label: 'Календар', icon: CalendarDays },
   { href: '/sessions', label: 'Усі співбесіди', icon: List },
 ];
 

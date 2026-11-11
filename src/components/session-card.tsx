@@ -45,12 +45,13 @@ export function SessionActions({ session, compact }: { session: Session; compact
 export function SessionCard({ session, showName }: { session: Session; showName?: boolean }) {
   const muted = ['past', 'closed'].includes(displayState(session));
   return (
-    <article className="group flex flex-col rounded-card border border-line bg-surface p-4 transition-colors hover:border-line-strong">
+    <article className="group relative flex flex-col rounded-card border border-line bg-surface p-4 transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-pop has-[a:focus-visible]:ring-4 has-[a:focus-visible]:ring-primary/20">
       <div className="flex items-start gap-3">
         <DateTile iso={session.startDate} muted={muted} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap-reverse items-start justify-between gap-x-2 gap-y-1.5">
-            <Link href={`/sessions/${session.id}`} className="block min-w-0 rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20">
+            {/* Посилання розтягнуте на всю картку (after:inset-0); кнопки дій лежать поверх */}
+            <Link href={`/sessions/${session.id}`} className="block min-w-0 rounded after:absolute after:inset-0 after:rounded-card after:content-[''] focus-visible:outline-none">
               {showName && <p className="mb-0.5 text-sm font-semibold text-ink" title={session.name}>{session.pipelineName || session.name}</p>}
               <p className={showName ? 'text-sm text-ink-muted' : 'text-sm font-semibold text-ink'}>{formatWeekday(session.startDate)}, {formatDate(session.startDate)}</p>
               <p className="mt-0.5 flex items-center gap-1.5 text-sm text-ink-muted"><Clock className="h-3.5 w-3.5" /> {formatTime(session.startDate)}</p>
@@ -72,7 +73,7 @@ export function SessionCard({ session, showName }: { session: Session; showName?
         <ProgressBar session={session} />
       </div>
       <div className="mt-3 flex items-center justify-end border-t border-line pt-2">
-        <SessionActions session={session} />
+        <div className="relative z-10"><SessionActions session={session} /></div>
       </div>
     </article>
   );
