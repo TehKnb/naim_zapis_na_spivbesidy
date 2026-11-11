@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   }
 }
 
-/** Редагування дати, часу і максимальної кількості учасників. */
+/** Редагування дати, часу, максимальної кількості учасників і воронки. */
 export async function PATCH(req: Request, { params }: Ctx) {
   try {
     const { id } = await params;

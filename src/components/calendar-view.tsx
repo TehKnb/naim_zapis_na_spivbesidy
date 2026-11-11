@@ -36,7 +36,7 @@ function EventChip({ s, onOpen, full }: { s: Session; onOpen: (s: Session) => vo
     <button
       type="button"
       onClick={() => onOpen(s)}
-      title={`${s.name} · ${s.currentCount}/${s.maxParticipants} · ${m.label}`}
+      title={`${s.pipelineName || 'Воронку не вказано'} · ${formatTime(s.startDate)} · ${s.currentCount}/${s.maxParticipants} · ${m.label}`}
       className={cx(
         'flex w-full items-center gap-1.5 rounded-md border px-1.5 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         full ? 'flex-col items-start gap-0.5 py-2 px-2.5' : 'h-6',
@@ -46,6 +46,7 @@ function EventChip({ s, onOpen, full }: { s: Session; onOpen: (s: Session) => vo
       {full ? (
         <>
           <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(s.startDate)}</span>
+          {s.pipelineName && <span className="line-clamp-2 w-full break-words text-center font-normal">{s.pipelineName}</span>}
           <span className="flex items-center gap-1 font-normal opacity-90"><Users className="h-3 w-3" />{s.currentCount}/{s.maxParticipants}</span>
           <span className="font-normal opacity-80">{m.label}</span>
         </>
@@ -72,8 +73,11 @@ function DayList({ day, items, onOpen }: { day: DateTime; items: Session[]; onOp
             return (
               <button key={s.id} type="button" onClick={() => onOpen(s)}
                 className={cx('flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors', m.event)}>
-                <span className="flex items-center gap-2 font-medium"><span className={cx('h-2 w-2 rounded-full', m.dot)} />{formatTime(s.startDate)}</span>
-                <span className="flex items-center gap-3 text-xs"><span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{s.currentCount}/{s.maxParticipants}</span>{m.label}</span>
+                <span className="flex min-w-0 items-center gap-2 font-medium">
+                  <span className={cx('h-2 w-2 flex-none rounded-full', m.dot)} />{formatTime(s.startDate)}
+                  {s.pipelineName && <span className="truncate font-normal">{s.pipelineName}</span>}
+                </span>
+                <span className="flex flex-none items-center gap-3 text-xs"><span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{s.currentCount}/{s.maxParticipants}</span>{m.label}</span>
               </button>
             );
           })}

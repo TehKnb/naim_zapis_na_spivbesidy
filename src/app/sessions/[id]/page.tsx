@@ -1,9 +1,10 @@
 'use client';
 
-import { AlertTriangle, ArrowLeft, CalendarDays, Clock, Lock, Pencil, Users } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, Clock, Funnel, Lock, Pencil, Users } from 'lucide-react';
 import Link from 'next/link';
 import { use, useState } from 'react';
 import { toast } from 'sonner';
+import { PipelineName } from '@/components/pipeline-filter';
 import { useSessionForm } from '@/components/session-form';
 import { Button, Card, EmptyState, ErrorState, Modal, Pill, ProgressBar, Skeleton, StatusBadge } from '@/components/ui';
 import { useCloseSession, useSession } from '@/hooks/use-sessions';
@@ -151,6 +152,9 @@ export default function SessionDetailsPage({ params }: { params: Promise<{ id: s
                   <StatusBadge session={data.session} />
                 </div>
                 <p className="mt-1.5 text-sm text-ink-muted">{formatFull(data.session.startDate)} · Europe/Kyiv</p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
+                  <Funnel className="h-4 w-4 flex-none" /> Воронка: <PipelineName session={data.session} className="font-medium text-ink" fallback="не вказано" />
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => openEdit(data.session)} className="flex-1 md:flex-none"><Pencil className="h-4 w-4" /> Редагувати</Button>

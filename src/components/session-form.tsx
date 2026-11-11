@@ -1,10 +1,10 @@
 'use client';
 
-import { CalendarDays, Clock, Info, Users } from 'lucide-react';
+import { CalendarDays, Clock, Funnel, Info, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { useCreateSession, useUpdateSession } from '@/hooks/use-sessions';
+import { useCreateSession, usePipelines, useUpdateSession } from '@/hooks/use-sessions';
 import { ClientApiError } from '@/lib/api-client';
 import { pluralCandidates } from '@/lib/session-utils';
 import { localPartsToUtc, nowKyiv, previewSessionName, toLocalParts } from '@/lib/time';
@@ -38,13 +38,14 @@ export function SessionFormProvider({ children }: { children: React.ReactNode })
 function initialValues(state: FormState) {
   if (state.mode === 'edit') {
     const { date, time } = toLocalParts(state.session.startDate);
-    return { date, time, max: String(state.session.maxParticipants) };
+    return { date, time, max: String(state.session.maxParticipants), pipeline: state.session.pipelineId ? String(state.session.pipelineId) : '' };
   }
   const t = nowKyiv().plus({ days: 1 });
-  return { date: t.toFormat('yyyy-LL-dd'), time: '10:00', max: '10' };
+  return { date: t.toFormat('yyyy-LL-dd'), time: '10:00', max: '10', pipeline: '' };
 }
 
-type Errors = Partial<Record<'date' | 'time' | 'maxParticipants', string>>;
+type Errors = Partial<Record<'date' | 'time' | 'maxParticipants' | 'pipelineId', string>>;
+const PIPELINE_ERRORS = ['PIPELINE_REQUIRED', 'UNKNOWN_PIPELINE', 'PIPELINE_LOCKED'];
 
 function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () => void }) {
   const router = useRouter();
@@ -52,6 +53,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
   const [date, setDate] = useState(init.date);
   const [time, setTime] = useState(init.time);
   const [max, setMax] = useState(init.max);
+  const [pipeline, setPipeline] = useState(init.pipeline);
   const [errors, setErrors] = useState<Errors>({});
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -61,11 +63,24 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
   const update = useUpdateSession(session?.id ?? '');
   const mutation = isEdit ? update : create;
   const pending = mutation.isPending;
-  const preview = previewSessionName(date, time);
+  const pipelinesQuery = usePipelines();
+  // Воронку сесії можна змінити, лише поки на неї ніхто не записаний (те саме правило перевіряє n8n)
+  const pipelineLocked = !!session && session.currentCount > 0 && session.pipelineId !== null;
+  const pipelineOptions = useMemo(() => {
+    const list = (pipelinesQuery.data || []).map((p) => ({ ...p, missing: false }));
+    // Воронку сесії прибрали з довідника — показуємо її, щоб не втратити при редагуванні
+    if (session?.pipelineId && !list.some((p) => p.id === session.pipelineId)) {
+      list.push({ id: session.pipelineId, name: session.pipelineName || `Воронка ${session.pipelineId}`, missing: true });
+    }
+    return list;
+  }, [pipelinesQuery.data, session]);
+  const selectedPipeline = pipelineOptions.find((p) => String(p.id) === pipeline);
+  const preview = previewSessionName(date, time, selectedPipeline?.name);
   const minDate = nowKyiv().toFormat('yyyy-LL-dd');
 
   function validate(): Errors {
     const e: Errors = {};
+    if (!pipeline) e.pipelineId = 'Оберіть воронку';
     if (!date) e.date = 'Вкажіть дату';
     if (!time) e.time = 'Вкажіть час';
     if (date && time) {
@@ -89,7 +104,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length) return;
-    const input: SessionInput = { date, time, maxParticipants: Number(max) };
+    const input: SessionInput = { date, time, maxParticipants: Number(max), pipelineId: Number(pipeline) };
     try {
       const { session: saved } = await mutation.mutateAsync(input);
       toast.success(isEdit ? 'Зміни збережено' : 'Співбесіду створено', {
@@ -103,6 +118,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
         const f = err.fields as Errors;
         if (err.code === 'CAPACITY_BELOW_REGISTERED') setErrors({ maxParticipants: err.message });
         else if (err.code === 'START_IN_PAST') setErrors({ date: err.message });
+        else if (PIPELINE_ERRORS.includes(err.code)) setErrors({ pipelineId: err.message });
         else if (Object.keys(f).length) setErrors(f);
         else setFormError(err.message);
       } else setFormError('Не вдалося зберегти. Спробуйте ще раз.');
@@ -118,7 +134,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
       onClose={onClose}
       closeDisabled={pending}
       title={isEdit ? 'Редагувати співбесіду' : 'Нова співбесіда'}
-      description={isEdit ? session!.name : 'Назва сформується автоматично з дати й часу'}
+      description={isEdit ? session!.name : 'Назва сформується автоматично з воронки, дати й часу'}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={pending} type="button">Скасувати</Button>
@@ -132,6 +148,27 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
             <Info className="mt-0.5 h-4 w-4 flex-none" /> {formError}
           </div>
         )}
+        <label className="block">
+          <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-ink"><Funnel className="h-4 w-4 text-ink-muted" /> Воронка</span>
+          <select value={pipeline} onChange={(e) => { setPipeline(e.target.value); setErrors((x) => ({ ...x, pipelineId: undefined })); }}disabled={pending || pipelineLocked || pipelinesQuery.isLoading}
+            aria-invalid={!!errors.pipelineId} className={cx(field, 'appearance-none truncate pr-3', !pipeline && 'text-ink-soft', errors.pipelineId ? 'border-danger' : 'border-line-strong')}>
+            <option value="" disabled>{pipelinesQuery.isLoading ? 'Завантаження воронок…' : 'Оберіть воронку'}</option>
+            {pipelineOptions.map((p) => <option key={p.id} value={String(p.id)} className="text-ink">{p.name}{p.missing ? ' (немає в довіднику)' : ''}</option>)}
+          </select>
+          {err('pipelineId')}
+          {pipelinesQuery.isError && (
+            <p className="mt-1.5 text-xs text-danger" role="alert">
+              Не вдалося завантажити список воронок.{' '}
+              <button type="button" onClick={() => pipelinesQuery.refetch()} className="font-medium underline">Спробувати ще раз</button>
+            </p>
+          )}
+          {pipelineLocked && !errors.pipelineId && (
+            <p className="mt-1.5 text-xs text-ink-muted">Воронку не можна змінити: уже зареєстровано {pluralCandidates(session!.currentCount)}.</p>
+          )}
+          {!pipelineLocked && !errors.pipelineId && !pipelinesQuery.isError && (
+            <p className="mt-1.5 text-xs text-ink-muted">Сюди записуватимуться кандидати, яких у цій воронці KeyCRM перевели у «Відібрано».</p>
+          )}
+        </label>
         <div className="grid grid-cols-1 gap-4 xs:grid-cols-2">
           <label className="block">
             <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-ink"><CalendarDays className="h-4 w-4 text-ink-muted" /> Дата</span>

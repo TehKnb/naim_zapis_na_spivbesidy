@@ -1,10 +1,11 @@
 'use client';
 
-import { Clock, Eye, Pencil, Users } from 'lucide-react';
+import { Clock, Eye, Funnel, Pencil, Users } from 'lucide-react';
 import Link from 'next/link';
 import { displayState, pluralSeats } from '@/lib/session-utils';
 import { formatDate, formatTime, formatWeekday, kyiv } from '@/lib/time';
 import type { Session } from '@/lib/types';
+import { PipelineName } from './pipeline-filter';
 import { useSessionForm } from './session-form';
 import { IconButton, ProgressBar, StatusBadge, cx } from './ui';
 
@@ -50,9 +51,14 @@ export function SessionCard({ session, showName }: { session: Session; showName?
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap-reverse items-start justify-between gap-x-2 gap-y-1.5">
             <Link href={`/sessions/${session.id}`} className="block min-w-0 rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20">
-              {showName && <p className="mb-0.5 text-sm font-semibold text-ink">{session.name}</p>}
+              {showName && <p className="mb-0.5 text-sm font-semibold text-ink" title={session.name}>{session.pipelineName || session.name}</p>}
               <p className={showName ? 'text-sm text-ink-muted' : 'text-sm font-semibold text-ink'}>{formatWeekday(session.startDate)}, {formatDate(session.startDate)}</p>
               <p className="mt-0.5 flex items-center gap-1.5 text-sm text-ink-muted"><Clock className="h-3.5 w-3.5" /> {formatTime(session.startDate)}</p>
+              {!showName && (
+                <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-ink-muted">
+                  <Funnel className="h-3.5 w-3.5 flex-none" /> <PipelineName session={session} className="line-clamp-2" />
+                </p>
+              )}
             </Link>
             <StatusBadge session={session} />
           </div>

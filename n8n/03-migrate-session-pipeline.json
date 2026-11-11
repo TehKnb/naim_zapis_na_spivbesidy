@@ -1,0 +1,279 @@
+{
+  "name": "Одноразово: заповнити воронку для наявних сесій",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "8bef2996-2676-5274-84e8-4029cc7d1e8c",
+      "name": "Запустити один раз",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d1d2daf7-84b6-517f-8033-1fafcabac68a",
+              "name": "PIPELINE_ID",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "bccee852-c4dc-5c85-9e44-d0fb3c5ef2de",
+              "name": "PIPELINE_NAME",
+              "value": "Менеджер з продажу 1 етап",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "2b2df937-9db0-5b63-93d4-92dfd7c31a7d",
+      "name": "Воронка для наявних сесій",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": []
+        },
+        "returnAll": true
+      },
+      "id": "bd0977a1-de01-5ddc-a276-6cdcc3034b3f",
+      "name": "DT: усі сесії",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\n\nconst list = rows($input.all()).filter((s) => !s.pipeline_name && (s.pipeline_id === null || s.pipeline_id === undefined || s.pipeline_id === ''));\nreturn list.map((s) => ({ json: { session_id: s.session_id, session_name: s.session_name } }));\n"
+      },
+      "id": "ff3b68d6-b71c-540d-a4de-22758cfb3cd0",
+      "name": "Сесії без воронки",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ],
+      "notes": "Лише сесії, у яких воронку ще не заповнено",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.session_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "pipeline_id": "={{ $('Воронка для наявних сесій').first().json.PIPELINE_ID }}",
+            "pipeline_name": "={{ $('Воронка для наявних сесій').first().json.PIPELINE_NAME }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "session_name",
+              "displayName": "session_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "max_participants",
+              "displayName": "max_participants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "pipeline_id",
+              "displayName": "pipeline_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "pipeline_name",
+              "displayName": "pipeline_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "dfd27ee4-f594-577f-9aab-c34136d3010a",
+      "name": "DT: заповнити воронку",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "content": "## Одноразово: прив'язати наявні сесії до воронки\nСпершу додайте в таблицю **Interview Sessions** колонки `pipeline_id` (Number) і `pipeline_name` (String).\n\nПотім натисніть **Execute workflow**. Усім сесіям, у яких воронку ще не заповнено, буде записано воронку з вузла «Воронка для наявних сесій» (за замовчуванням: 1 / «Менеджер з продажу 1 етап»).\n\nСесії, у яких воронка вже є, не змінюються, тож повторний запуск безпечний. Назви наявних сесій не змінюються; нова назва з воронкою з'явиться після редагування сесії в адмінпанелі.\nПісля запуску цей workflow можна видалити.",
+        "height": 340,
+        "width": 760,
+        "color": 4
+      },
+      "id": "52173fbe-79f4-58df-8e98-593c82973867",
+      "name": "Опис",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -400
+      ]
+    }
+  ],
+  "connections": {
+    "Запустити один раз": {
+      "main": [
+        [
+          {
+            "node": "Воронка для наявних сесій",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Воронка для наявних сесій": {
+      "main": [
+        [
+          {
+            "node": "DT: усі сесії",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: усі сесії": {
+      "main": [
+        [
+          {
+            "node": "Сесії без воронки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сесії без воронки": {
+      "main": [
+        [
+          {
+            "node": "DT: заповнити воронку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Kyiv",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -12,6 +12,9 @@ export interface Session {
   currentCount: number;
   availableSeats: number;
   isPast: boolean;
+  /** Воронка KeyCRM, для якої ця співбесіда. null — ще не прив'язано (стара сесія). */
+  pipelineId: number | null;
+  pipelineName: string;
   createdAt?: string | null;
   updatedAt?: string | null;
 }
@@ -34,11 +37,18 @@ export interface SessionDetails {
   participants: Participant[];
 }
 
+/** Воронка з довідника (n8n «Конфіг» → PIPELINES). */
+export interface Pipeline {
+  id: number;
+  name: string;
+}
+
 /** Дані форми: дата й час — локальні, Europe/Kyiv. */
 export interface SessionInput {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   maxParticipants: number;
+  pipelineId: number;
 }
 
 export interface ApiErrorBody {

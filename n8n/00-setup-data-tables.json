@@ -38,6 +38,14 @@
             {
               "name": "status",
               "type": "string"
+            },
+            {
+              "name": "pipeline_id",
+              "type": "number"
+            },
+            {
+              "name": "pipeline_name",
+              "type": "string"
             }
           ]
         },
@@ -108,7 +116,7 @@
     },
     {
       "parameters": {
-        "content": "## Створення n8n Data Tables (один раз)\nНатисніть **Execute workflow**. Буде створено дві таблиці:\n- **Interview Sessions**: session_id, session_name, start_date (date), max_participants (number), status\n- **Interview Participants**: keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error\n\nСистемні колонки `id`, `createdAt`, `updatedAt` n8n додає сам. Повторний запуск безпечний: наявні таблиці не змінюються.\nНе створюйте інших таблиць, у назві яких є «Interview Sessions» або «Interview Participants» (наприклад, копій): workflow знаходять таблиці за назвою.",
+        "content": "## Створення n8n Data Tables (один раз)\nНатисніть **Execute workflow**. Буде створено дві таблиці:\n- **Interview Sessions**: session_id, session_name, start_date (date), max_participants (number), status, pipeline_id (number), pipeline_name\n- **Interview Participants**: keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error\n\nСистемні колонки `id`, `createdAt`, `updatedAt` n8n додає сам. Повторний запуск безпечний: наявні таблиці не змінюються.\nНе створюйте інших таблиць, у назві яких є «Interview Sessions» або «Interview Participants» (наприклад, копій): workflow знаходять таблиці за назвою.",
         "height": 300,
         "width": 620,
         "color": 4

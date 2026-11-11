@@ -81,10 +81,10 @@ export function localPartsToUtc(date: string, time: string): LocalToUtcResult {
 }
 
 /** Прев'ю автоматичної назви (остаточну назву формує n8n за тим самим правилом). */
-export function previewSessionName(date: string, time: string): string | null {
+export function previewSessionName(date: string, time: string, pipelineName?: string): string | null {
   const r = localPartsToUtc(date, time);
   if (!r.ok) return null;
-  return `Групова співбесіда — ${kyiv(r.iso).toFormat('d MMMM, HH:mm')}`;
+  return `Групова співбесіда — ${pipelineName ? pipelineName + ' — ' : ''}${kyiv(r.iso).toFormat('d MMMM, HH:mm')}`;
 }
 
 /** Початок тижня (понеділок) у Києві. */

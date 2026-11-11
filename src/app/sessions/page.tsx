@@ -4,6 +4,7 @@ import { ArrowUpDown, CalendarDays, CalendarX, Clock, List, Search, Users, X } f
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { CalendarView } from '@/components/calendar-view';
+import { matchesPipeline, PipelineFilter, type PipelineFilterValue } from '@/components/pipeline-filter';
 import { DateTile, SessionActions, SessionCard } from '@/components/session-card';
 import { Card, EmptyState, ErrorState, PageHeader, ProgressBar, Skeleton, StatusBadge, cx } from '@/components/ui';
 import { useSessions } from '@/hooks/use-sessions';
@@ -41,7 +42,7 @@ function SessionRow({ s }: { s: Session }) {
       <Link href={`/sessions/${s.id}`} className="flex min-w-0 items-center gap-3 rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20">
         <DateTile iso={s.startDate} muted={muted} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">{s.name}</p>
+          <p className="truncate text-sm font-semibold text-ink" title={s.name}>{s.pipelineName || s.name}</p>
           <p className="mt-0.5 truncate text-sm text-ink-muted">{formatWeekday(s.startDate)}, {formatDate(s.startDate)}</p>
         </div>
       </Link>
@@ -65,17 +66,19 @@ export default function AllSessionsPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('upcoming');
   const [view, setView] = useState<'list' | 'calendar'>('list');
+  const [pipeline, setPipeline] = useState<PipelineFilterValue>('all');
 
-  const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, (data || []).filter((s) => matches(s, f.key)).length])), [data]);
+  const inPipeline = useMemo(() => (data || []).filter((s) => matchesPipeline(s, pipeline)), [data, pipeline]);
+  const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, inPipeline.filter((s) => matches(s, f.key)).length])), [inPipeline]);
   const visible = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const list = (data || []).filter((s) => matches(s, filter)).filter((s) => {
+    const list = inPipeline.filter((s) => matches(s, filter)).filter((s) => {
       if (!needle) return true;
-      const hay = `${s.name} ${formatWeekday(s.startDate)} ${formatDate(s.startDate)} ${formatTime(s.startDate)}`.toLowerCase();
+      const hay = `${s.name} ${s.pipelineName} ${formatWeekday(s.startDate)} ${formatDate(s.startDate)} ${formatTime(s.startDate)}`.toLowerCase();
       return hay.includes(needle);
     });
     return sort === 'upcoming' ? sortUpcomingFirst(list) : sortByDate(list, sort);
-  }, [data, q, filter, sort]);
+  }, [inPipeline, q, filter, sort]);
 
   return (
     <>
@@ -84,7 +87,7 @@ export default function AllSessionsPage() {
       <Card className="overflow-hidden">
         {/* Панель інструментів */}
         <div className="flex flex-col gap-3 border-b border-line p-3 md:p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-1" role="tablist" aria-label="Фільтр за статусом">
               {FILTERS.map((f) => (
                 <button key={f.key} role="tab" aria-selected={filter === f.key} onClick={() => setFilter(f.key)}
@@ -95,10 +98,11 @@ export default function AllSessionsPage() {
                 </button>
               ))}
             </div>
-            <div className="flex flex-col gap-2 xs:flex-row xs:items-center">
-              <div className="relative flex-1 xl:w-64 xl:flex-none">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <PipelineFilter value={pipeline} onChange={setPipeline} className="md:w-60 md:flex-none" />
+              <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Пошук за назвою чи датою" aria-label="Пошук"
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Пошук за назвою, воронкою чи датою" aria-label="Пошук"
                   className="h-9 w-full rounded-lg border border-line-strong bg-surface pl-9 pr-8 text-sm text-ink outline-none placeholder:text-ink-soft focus:border-primary focus:ring-4 focus:ring-primary/15" />
                 {q && <button onClick={() => setQ('')} aria-label="Очистити пошук" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-ink-soft hover:text-ink"><X className="h-4 w-4" /></button>}
               </div>
@@ -136,13 +140,13 @@ export default function AllSessionsPage() {
           <EmptyState
             icon={<CalendarX className="h-5 w-5" />}
             title={data && data.length ? 'Нічого не знайдено' : 'Ще немає жодної співбесіди'}
-            description={data && data.length ? 'Змініть фільтр або пошуковий запит.' : 'Створіть першу співбесіду кнопкою «Створити співбесіду» вгорі.'}
+            description={data && data.length ? 'Змініть фільтр, воронку або пошуковий запит.' : 'Створіть першу співбесіду кнопкою «Створити співбесіду» вгорі.'}
           />
         ) : (
           <>
             <div className="hidden lg:block">
               <div className="grid grid-cols-[minmax(0,1fr)_72px_minmax(180px,240px)_112px_72px] gap-4 border-b border-line bg-neutral-50 px-4 py-2 text-xs font-medium text-ink-muted lg:gap-6">
-                <span>Співбесіда</span><span>Час</span><span>Заповненість</span><span>Статус</span><span />
+                <span>Воронка і дата</span><span>Час</span><span>Заповненість</span><span>Статус</span><span />
               </div>
               <div className="divide-y divide-line">{visible.map((s) => <SessionRow key={s.id} s={s} />)}</div>
             </div>

@@ -22,6 +22,7 @@ export function parseSessionInput(body: Record<string, unknown>, { requireFuture
   const date = typeof body.date === 'string' ? body.date.trim() : '';
   const time = typeof body.time === 'string' ? body.time.trim() : '';
   const max = Number(body.maxParticipants);
+  const pipelineId = Number(body.pipelineId);
   const fields: Record<string, string> = {};
   const conv = localPartsToUtc(date, time);
   if (!date) fields.date = 'Вкажіть дату';
@@ -30,8 +31,12 @@ export function parseSessionInput(body: Record<string, unknown>, { requireFuture
   if (conv.ok && requireFuture && new Date(conv.iso).getTime() <= Date.now()) fields.date = 'Не можна створити співбесіду в минулому';
   if (!Number.isInteger(max) || max <= 0) fields.maxParticipants = 'Має бути додатне ціле число';
   else if (max > 1000) fields.maxParticipants = 'Занадто велике значення';
+  // Наявність воронки в довіднику перевіряє n8n
+  if (body.pipelineId === null || body.pipelineId === undefined || body.pipelineId === '' || !Number.isInteger(pipelineId) || pipelineId <= 0) {
+    fields.pipelineId = 'Оберіть воронку';
+  }
   if (Object.keys(fields).length > 0 || !conv.ok) {
     throw new ApiFailure(400, 'VALIDATION_ERROR', Object.values(fields)[0] ?? 'Перевірте дані форми', { fields });
   }
-  return { startDate: conv.iso, maxParticipants: max };
+  return { startDate: conv.iso, maxParticipants: max, pipelineId };
 }

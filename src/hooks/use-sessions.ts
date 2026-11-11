@@ -6,12 +6,18 @@ import type { Session, SessionDetails, SessionInput } from '@/lib/types';
 
 export const keys = {
   sessions: ['sessions'] as const,
+  pipelines: ['pipelines'] as const,
   session: (id: string) => ['session', id] as const,
 };
 
 /** Один спільний кеш для «Огляду», «Календаря» і «Усіх співбесід» — оновлення узгоджене на всіх вкладках. */
 export function useSessions() {
   return useQuery({ queryKey: keys.sessions, queryFn: async () => (await api.list()).sessions });
+}
+
+/** Довідник воронок (форма, фільтри). Змінюється рідко — у n8n, вузол «Конфіг». */
+export function usePipelines() {
+  return useQuery({ queryKey: keys.pipelines, queryFn: async () => (await api.pipelines()).pipelines, staleTime: 5 * 60_000 });
 }
 
 export function useSession(id: string) {

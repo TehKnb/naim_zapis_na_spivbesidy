@@ -39,12 +39,6 @@
               "type": "string"
             },
             {
-              "id": "6e0cfae7-00be-543e-a375-f4c2acdc900f",
-              "name": "TARGET_STATUS_ID",
-              "value": 30,
-              "type": "number"
-            },
-            {
               "id": "9b0effcb-52e4-565c-9879-6ec8609fa4b5",
               "name": "INTERVIEW_FIELD_UUID",
               "value": "LD_1027",
@@ -110,7 +104,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Дані беремо з webhook як є, без перетворень.\n// Перевіряємо лише, що заповнені поля, потрібні для подальшої роботи.\nconst body = $('KeyCRM Webhook').first().json.body || {};\nconst str = (v) => (v === null || v === undefined) ? '' : String(v);\nconst ctx = {\n  cardId: str(body.id),             // ID картки KeyCRM -> keycrm_id у Data Table і PUT /pipelines/cards/{id}\n  name: str(body.contact_name),     // -> Name\n  phone: str(body.contact_phone),   // -> Phone (у форматі, як прийшов із KeyCRM)\n  title: str(body.title),\n  triedSessionIds: [],\n  attempt: 0,\n  reason: '',\n};\nconst missing = [];\nif (!ctx.cardId.trim()) missing.push('id');\nif (!ctx.name.trim()) missing.push('contact_name');\nif (!ctx.phone.trim()) missing.push('contact_phone');\nctx.valid = missing.length === 0;\nif (!ctx.valid) ctx.reason = \"У webhook не заповнені обов'язкові поля: \" + missing.join(', ');\nreturn [{ json: ctx }];\n"
+        "jsCode": "// Дані беремо з webhook як є, без перетворень.\n// Перевіряємо лише, що заповнені поля, потрібні для подальшої роботи.\nconst body = $('KeyCRM Webhook').first().json.body || {};\nconst str = (v) => (v === null || v === undefined) ? '' : String(v);\nconst ctx = {\n  cardId: str(body.id),             // ID картки KeyCRM -> keycrm_id у Data Table і PUT /pipelines/cards/{id}\n  name: str(body.contact_name),     // -> Name\n  phone: str(body.contact_phone),   // -> Phone (у форматі, як прийшов із KeyCRM)\n  title: str(body.title),\n  pipeline: str(body.pipeline).trim(), // назва воронки -> пошук сесій цієї воронки (pipeline_name)\n  triedSessionIds: [],\n  attempt: 0,\n  reason: '',\n};\nconst missing = [];\nif (!ctx.cardId.trim()) missing.push('id');\nif (!ctx.name.trim()) missing.push('contact_name');\nif (!ctx.phone.trim()) missing.push('contact_phone');\nif (!ctx.pipeline) missing.push('pipeline');\nctx.valid = missing.length === 0;\nif (!ctx.valid) ctx.reason = \"У webhook не заповнені обов'язкові поля: \" + missing.join(', ');\nreturn [{ json: ctx }];\n"
       },
       "id": "03a15b26-6e5c-5e35-b9c1-73b6ce4c09ff",
       "name": "Перевірка полів webhook",
@@ -120,7 +114,7 @@
         -880,
         160
       ],
-      "notes": "Наявність id, contact_name, contact_phone",
+      "notes": "Наявність id, contact_name, contact_phone, pipeline",
       "notesInFlow": true
     },
     {
@@ -346,6 +340,11 @@
               "keyName": "start_date",
               "condition": "gt",
               "keyValue": "={{ $now.toISO() }}"
+            },
+            {
+              "keyName": "pipeline_name",
+              "condition": "eq",
+              "keyValue": "={{ $json.pipeline }}"
             }
           ]
         },
@@ -366,12 +365,12 @@
       "maxTries": 3,
       "waitBetweenTries": 3000,
       "alwaysOutputData": true,
-      "notes": "status=Open і start_date у майбутньому; вільні місця рахуються далі за учасниками",
+      "notes": "Воронка кандидата, status=Open, start_date у майбутньому; вільні місця рахуються далі",
       "notesInFlow": true
     },
     {
       "parameters": {
-        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Спроба бронювання').first().json };\nconst minStart = Date.now() + Number(cfg.MIN_LEAD_MINUTES || 0) * 60000;\nconst list = rows($input.all())\n  .filter((r) => r.session_id && r.start_date && new Date(r.start_date).getTime() > minStart)\n  .filter((r) => !ctx.triedSessionIds.includes(r.session_id))\n  .sort((a, b) => new Date(a.start_date) - new Date(b.start_date) || a.id - b.id);\n\nif (ctx.attempt > Number(cfg.MAX_BOOKING_ATTEMPTS) || list.length === 0) {\n  ctx.sessionFound = false;\n  ctx.reason = list.length === 0\n    ? 'Немає відкритих майбутніх сесій з вільними місцями'\n    : `Вичерпано спроби бронювання (${cfg.MAX_BOOKING_ATTEMPTS}) — місця розібрали паралельні запити`;\n} else {\n  ctx.sessionFound = true;\n  ctx.sessionId = list[0].session_id;\n}\nreturn { json: ctx };\n"
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Спроба бронювання').first().json };\nconst minStart = Date.now() + Number(cfg.MIN_LEAD_MINUTES || 0) * 60000;\nconst list = rows($input.all())\n  .filter((r) => r.session_id && r.start_date && new Date(r.start_date).getTime() > minStart)\n  .filter((r) => !ctx.triedSessionIds.includes(r.session_id))\n  .sort((a, b) => new Date(a.start_date) - new Date(b.start_date) || a.id - b.id);\n\nif (ctx.attempt > Number(cfg.MAX_BOOKING_ATTEMPTS) || list.length === 0) {\n  ctx.sessionFound = false;\n  ctx.reason = list.length === 0\n    ? `Немає відкритих майбутніх сесій з вільними місцями у воронці «${ctx.pipeline}»`\n    : `Вичерпано спроби бронювання (${cfg.MAX_BOOKING_ATTEMPTS}) — місця розібрали паралельні запити`;\n} else {\n  ctx.sessionFound = true;\n  ctx.sessionId = list[0].session_id;\n}\nreturn { json: ctx };\n"
       },
       "id": "eca30d74-7c1e-5a1d-9acf-6dabc17d1ae3",
       "name": "Вибір найближчої сесії",
@@ -496,7 +495,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Вибір найближчої сесії').first().json };\nconst s = rows($('DT: повторна перевірка сесії').all())[0] || {};\nconst count = rows($input.all()).length;\nconst max = Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS);\nconst available = Math.max(0, max - count);                                   // Available Seats = MAX(0, Max - Current)\nconst ok = s.status === 'Open' && available > 0 && s.start_date && new Date(s.start_date).getTime() > Date.now();\nctx.seatOk = !!ok;\nif (!ok) {\n  ctx.triedSessionIds = [...ctx.triedSessionIds, ctx.sessionId];\n  ctx.skipAttemptCount = available === 0 && s.status === 'Open';             // сесія без місць — не спроба бронювання\n}\nreturn { json: ctx };\n"
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Вибір найближчої сесії').first().json };\nconst s = rows($('DT: повторна перевірка сесії').all())[0] || {};\nconst count = rows($input.all()).length;\nconst max = Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS);\nconst available = Math.max(0, max - count);                                   // Available Seats = MAX(0, Max - Current)\nconst ok = s.status === 'Open' && s.pipeline_name === ctx.pipeline && available > 0 && s.start_date && new Date(s.start_date).getTime() > Date.now();\nctx.seatOk = !!ok;\nif (!ok) {\n  ctx.triedSessionIds = [...ctx.triedSessionIds, ctx.sessionId];\n  ctx.skipAttemptCount = available === 0 && s.status === 'Open';             // сесія без місць — не спроба бронювання\n}\nreturn { json: ctx };\n"
       },
       "id": "7e763366-e676-53c9-b9f5-875e89dbae01",
       "name": "Місце ще вільне?",
@@ -1143,6 +1142,26 @@
               "type": "string",
               "readOnly": false,
               "removed": false
+            },
+            {
+              "id": "pipeline_id",
+              "displayName": "pipeline_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "pipeline_name",
+              "displayName": "pipeline_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -1167,7 +1186,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const cfg = $('Конфіг').first().json;\nconst ctx = { ...$input.first().json };\nconst start = DateTime.fromISO(ctx.session.start, { zone: 'utc' });\nif (!start.isValid) throw new Error('Некоректна Start Date сесії: ' + ctx.session.start);\nconst local = start.setZone(cfg.TIMEZONE);\nconst type = String(cfg.INTERVIEW_FIELD_TYPE || 'datetime').toLowerCase();\nlet value;\nif (type === 'datetime') value = start.toUTC().toFormat(\"yyyy-LL-dd'T'HH:mm:ss.SSS'000Z'\"); // ISO 8601 UTC, як у документації KeyCRM\nelse if (type === 'date') value = local.toFormat('yyyy-LL-dd');\nelse value = local.toFormat('dd.LL.yyyy HH:mm');                                            // текстове поле: київський час\nctx.interviewKyiv = local.toFormat('dd.LL.yyyy HH:mm') + ' (' + cfg.TIMEZONE + ')';\nctx.keycrmBody = {\n  status_id: Number(cfg.TARGET_STATUS_ID),\n  custom_fields: [{ uuid: cfg.INTERVIEW_FIELD_UUID, value }],\n};\nreturn { json: ctx };\n"
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst ctx = { ...$input.first().json };\nconst start = DateTime.fromISO(ctx.session.start, { zone: 'utc' });\nif (!start.isValid) throw new Error('Некоректна Start Date сесії: ' + ctx.session.start);\nconst local = start.setZone(cfg.TIMEZONE);\nconst type = String(cfg.INTERVIEW_FIELD_TYPE || 'datetime').toLowerCase();\nlet value;\nif (type === 'datetime') value = start.toUTC().toFormat(\"yyyy-LL-dd'T'HH:mm:ss.SSS'000Z'\"); // ISO 8601 UTC, як у документації KeyCRM\nelse if (type === 'date') value = local.toFormat('yyyy-LL-dd');\nelse value = local.toFormat('dd.LL.yyyy HH:mm');                                            // текстове поле: київський час\nctx.interviewKyiv = local.toFormat('dd.LL.yyyy HH:mm') + ' (' + cfg.TIMEZONE + ')';\n// Лише поле співбесіди; статус картки не змінюємо (кандидат лишається у «Відібрано»)\nctx.keycrmBody = {\n  custom_fields: [{ uuid: cfg.INTERVIEW_FIELD_UUID, value }],\n};\nreturn { json: ctx };\n"
       },
       "id": "9761c7e0-c360-58f0-9f3d-9ce17660f589",
       "name": "Дані для KeyCRM",
@@ -1479,7 +1498,7 @@
     },
     {
       "parameters": {
-        "errorMessage": "={{ 'KeyCRM картку ' + $('Текст помилки KeyCRM').first().json.cardId + ' не оновлено. Бронювання збережено (KeyCRM Sync=Failed). Для повтору поверніть картку в статус «Новий». ' + $('Текст помилки KeyCRM').first().json.errorText }}"
+        "errorMessage": "={{ 'KeyCRM картку ' + $('Текст помилки KeyCRM').first().json.cardId + ' не оновлено. Бронювання збережено (KeyCRM Sync=Failed). Для повтору виведіть картку зі статусу «Відібрано» і поверніть назад. ' + $('Текст помилки KeyCRM').first().json.errorText }}"
       },
       "id": "fe4290b7-9155-54fb-8f9d-86d01652f802",
       "name": "Помилка: KeyCRM не оновлено",
@@ -1611,7 +1630,7 @@
     },
     {
       "parameters": {
-        "content": "## KeyCRM → n8n Data Tables: бронювання групової співбесіди\nТаблиці: **Interview Sessions** і **Interview Participants** (n8n Data Tables, вибір за назвою).\n1. **Webhook** KeyCRM (воронка 1, перехід у «Новий» — обмежено на боці KeyCRM) → відповідь 200 одразу.\n2. **Перевірка полів**: `id`, `contact_name`, `contact_phone` не порожні. Дані — як прийшли, без перетворень.\n3. **Перевірка дублів** у Interview Participants за `keycrm_id`.\n4. Найближча сесія `status=Open` у майбутньому → вільні місця = max_participants − активні (не Cancelled) учасники → запис `Reserved / Pending`.\n5. Пауза → прибрати дубль → **черга за id** (перші N з ліміту отримують місце, решта знімає бронь і пробує наступну сесію).\n6. **PUT картки** KeyCRM: `status_id=30` + `LD_1027` → `keycrm_sync=Synced`. Помилка → `Failed` + текст у `sync_error`.\n\nНемає сесій → лише сповіщення, таблиці і KeyCRM не змінюються.\n**Повтор оновлення KeyCRM**: поверніть картку в «Новий» — workflow знайде наявне бронювання і лише оновить картку.",
+        "content": "## KeyCRM → n8n Data Tables: бронювання групової співбесіди\nТаблиці: **Interview Sessions** і **Interview Participants** (n8n Data Tables, вибір за назвою).\n1. **Webhook** KeyCRM (перехід у «Відібрано» у будь-якій воронці найму 1 етапу — налаштовано на боці KeyCRM) → відповідь 200 одразу.\n2. **Перевірка полів**: `id`, `contact_name`, `contact_phone`, `pipeline` не порожні. Дані — як прийшли, без перетворень.\n3. **Перевірка дублів** у Interview Participants за `keycrm_id`.\n4. Найближча сесія **цієї воронки** (`pipeline_name` = поле `pipeline` з webhook), `status=Open`, у майбутньому → вільні місця = max_participants − активні (не Cancelled) учасники → запис `Reserved / Pending`.\n5. Пауза → прибрати дубль → **черга за id** (перші N з ліміту отримують місце, решта знімає бронь і пробує наступну сесію).\n6. **PUT картки** KeyCRM: лише поле `LD_1027` (статус не змінюється) → `keycrm_sync=Synced`. Помилка → `Failed` + текст у `sync_error`.\n\nНемає сесій → лише сповіщення, таблиці і KeyCRM не змінюються.\n**Повтор оновлення KeyCRM**: виведіть картку зі статусу «Відібрано» і поверніть назад — workflow знайде наявне бронювання і лише оновить картку.",
         "height": 420,
         "width": 900,
         "color": 4

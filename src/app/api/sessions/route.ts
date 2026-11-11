@@ -15,7 +15,7 @@ export async function GET() {
   }
 }
 
-/** Створення співбесіди: { date: 'YYYY-MM-DD', time: 'HH:mm' (Europe/Kyiv), maxParticipants }. */
+/** Створення співбесіди: { date: 'YYYY-MM-DD', time: 'HH:mm' (Europe/Kyiv), maxParticipants, pipelineId }. */
 export async function POST(req: Request) {
   try {
     const input = parseSessionInput(await readJson(req), { requireFuture: true });

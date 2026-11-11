@@ -4,7 +4,7 @@
  */
 import type { ApiErrorBody } from './types';
 
-export type SessionApiAction = 'list' | 'get' | 'participants' | 'create' | 'update' | 'close';
+export type SessionApiAction = 'list' | 'get' | 'participants' | 'create' | 'update' | 'close' | 'pipelines';
 
 export class ApiFailure extends Error {
   constructor(
