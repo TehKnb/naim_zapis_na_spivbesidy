@@ -10,7 +10,7 @@ import { pluralCandidates } from '@/lib/session-utils';
 import { localPartsToUtc, nowKyiv, previewSessionName, toLocalParts } from '@/lib/time';
 import type { Session, SessionInput, SessionResponsible } from '@/lib/types';
 import { pipelineColor } from '@/lib/pipeline-colors';
-import { ResponsiblePicker } from './responsibles';
+import { ResponsibleSelect } from './responsibles';
 import { Button, cx, Modal } from './ui';
 
 type FormState = { mode: 'create' } | { mode: 'edit'; session: Session };
@@ -194,10 +194,10 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
             <UserRound className="h-4 w-4 text-ink-muted" /> Відповідальні
             {responsibleIds.length > 0 && <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-white">{responsibleIds.length}</span>}
           </span>
-          {responsiblesQuery.isLoading ? (
-            <p className="text-sm text-ink-soft">Завантаження співробітників…</p>
-          ) : responsibleOptions.length > 0 ? (
-            <ResponsiblePicker options={responsibleOptions} value={responsibleIds} disabled={pending}
+          {responsiblesQuery.isLoading || responsibleOptions.length > 0 ? (
+            <ResponsibleSelect options={responsibleOptions} value={responsibleIds} disabled={pending} loading={responsiblesQuery.isLoading}
+              invalid={!!errors.responsibleIds}
+              onClear={() => setResponsibleIds([])}
               onToggle={(id) => {
                 setResponsibleIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
                 setErrors((x) => ({ ...x, responsibleIds: undefined }));

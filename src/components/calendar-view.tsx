@@ -3,14 +3,32 @@
 import { ChevronLeft, ChevronRight, Clock, Users } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { pipelineColor, tint } from '@/lib/pipeline-colors';
 import { displayState, STATE_META } from '@/lib/session-utils';
 import { dayKey, dayKeyOf, formatTime, kyiv, nowKyiv } from '@/lib/time';
 import type { Session } from '@/lib/types';
 import { Button, cx, IconButton } from './ui';
 
-type View = 'month' | 'week';
+export type CalendarMode = 'month' | 'week';
+type View = CalendarMode;
+
+/** Стан календаря зберігається в URL сторінки «Усі співбесіди» (щоб повертатися до нього кнопкою «Назад»). */
+export interface CalendarState {
+  view: CalendarMode;
+  /** Відкритий місяць / тиждень: будь-який день періоду, yyyy-LL-dd. Порожньо — сьогодні. */
+  date: string;
+  /** Вибраний день (мобільна версія), yyyy-LL-dd. Порожньо — сьогодні. */
+  day: string;
+}
+
+const KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+function fromKey(key: string): DateTime | null {
+  if (!KEY_RE.test(key)) return null;
+  const d = kyiv(`${key}T12:00:00Z`).startOf('day');
+  return d.isValid ? d : null;
+}
+export const isDayKey = (key: string) => fromKey(key) !== null;
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -98,12 +116,15 @@ function DayList({ day, items, onOpen }: { day: DateTime; items: Session[]; onOp
   );
 }
 
-export function CalendarView({ sessions }: { sessions: Session[] }) {
+export function CalendarView({ sessions, state, onChange }: { sessions: Session[]; state: CalendarState; onChange: (patch: Partial<CalendarState>) => void }) {
   const router = useRouter();
   const today = nowKyiv().startOf('day');
-  const [view, setView] = useState<View>('month');
-  const [cursor, setCursor] = useState<DateTime>(today);
-  const [selected, setSelected] = useState<string>(dayKey(today));
+  const view = state.view;
+  const cursor = fromKey(state.date) ?? today;
+  const selected = fromKey(state.day) ? state.day : dayKey(today);
+  const setView = (v: View) => onChange({ view: v });
+  const setCursor = (c: DateTime | ((c: DateTime) => DateTime)) => onChange({ date: dayKey(typeof c === 'function' ? c(cursor) : c) });
+  const setSelected = (k: string) => onChange({ day: k });
 
   const byDay = useMemo(() => {
     const m = new Map<string, Session[]>();

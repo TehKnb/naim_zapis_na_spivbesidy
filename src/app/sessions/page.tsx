@@ -2,15 +2,16 @@
 
 import { ArrowUpDown, CalendarDays, CalendarX, ChevronDown, Clock, List, Search, Users, X } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { CalendarView } from '@/components/calendar-view';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarView, isDayKey, type CalendarState } from '@/components/calendar-view';
 import { matchesPipeline, PipelineFilter, type PipelineFilterValue } from '@/components/pipeline-filter';
 import { ResponsibleStack, sessionResponsibles, shortName } from '@/components/responsibles';
 import { DateTile, PipelineStripe, SessionActions, SessionCard } from '@/components/session-card';
 import { pipelineColor } from '@/lib/pipeline-colors';
 import { Card, EmptyState, ErrorState, PageHeader, ProgressBar, Skeleton, StatusBadge, cx } from '@/components/ui';
 import { useSessions } from '@/hooks/use-sessions';
-import { displayState, pluralSeats, sortByDate, sortUpcomingFirst } from '@/lib/session-utils';
+import { displayState, LAST_SESSIONS_URL_KEY, pluralSeats, sortByDate, sortUpcomingFirst } from '@/lib/session-utils';
 import { formatDate, formatTime, formatWeekday } from '@/lib/time';
 import type { Session } from '@/lib/types';
 
@@ -28,6 +29,69 @@ const SORTS: { key: Sort; label: string }[] = [
   { key: 'asc', label: 'Дата: від ранніх' },
   { key: 'desc', label: 'Дата: від пізніх' },
 ];
+
+/** Стан сторінки живе в URL (?view=calendar&month=…): «Назад» з картки співбесіди повертає саме його. */
+interface ListState {
+  filter: Filter;
+  sort: Sort;
+  view: 'list' | 'calendar';
+  pipeline: PipelineFilterValue;
+  q: string;
+  cal: CalendarState;
+}
+
+function parseState(sp: URLSearchParams): ListState {
+  const pick = <T extends string>(v: string | null, allowed: readonly T[], def: T): T => (allowed.includes(v as T) ? (v as T) : def);
+  const pipeline = sp.get('pipeline') ?? '';
+  const date = sp.get('date') ?? '', day = sp.get('day') ?? '';
+  return {
+    filter: pick(sp.get('status'), FILTERS.map((f) => f.key), 'all'),
+    sort: pick(sp.get('sort'), SORTS.map((s) => s.key), 'upcoming'),
+    view: pick(sp.get('view'), ['list', 'calendar'] as const, 'list'),
+    pipeline: /^\d+$/.test(pipeline) ? pipeline : 'all',
+    q: (sp.get('q') ?? '').slice(0, 200),
+    cal: {
+      view: pick(sp.get('cal'), ['month', 'week'] as const, 'month'),
+      date: isDayKey(date) ? date : '',
+      day: isDayKey(day) ? day : '',
+    },
+  };
+}
+
+function serializeState(st: ListState): string {
+  const p = new URLSearchParams();
+  if (st.view !== 'list') p.set('view', st.view);
+  if (st.filter !== 'all') p.set('status', st.filter);
+  if (st.pipeline !== 'all') p.set('pipeline', st.pipeline);
+  if (st.q) p.set('q', st.q);
+  if (st.sort !== 'upcoming') p.set('sort', st.sort);
+  if (st.view === 'calendar') {
+    if (st.cal.view !== 'month') p.set('cal', st.cal.view);
+    if (st.cal.date) p.set('date', st.cal.date);
+    if (st.cal.day) p.set('day', st.cal.day);
+  }
+  return p.toString();
+}
+
+function useListState() {
+  const sp = useSearchParams();
+  const spString = sp.toString();
+  const [st, setSt] = useState<ListState>(() => parseState(new URLSearchParams(spString)));
+  // Перехід на /sessions без параметрів (навбар) чи «Вперед/Назад» браузера — беремо стан з URL
+  useEffect(() => {
+    setSt((cur) => (serializeState(cur) === serializeState(parseState(new URLSearchParams(spString))) ? cur : parseState(new URLSearchParams(spString))));
+  }, [spString]);
+  // Стан → URL (replaceState: без нового запису в історії і без запиту до сервера)
+  useEffect(() => {
+    const qs = serializeState(st);
+    const url = qs ? `/sessions?${qs}` : '/sessions';
+    if (window.location.pathname + window.location.search !== url) window.history.replaceState(window.history.state, '', url);
+    try { sessionStorage.setItem(LAST_SESSIONS_URL_KEY, url); } catch { /* приватний режим */ }
+  }, [st]);
+  const set = useCallback(<K extends keyof ListState>(k: K, v: ListState[K]) => setSt((cur) => ({ ...cur, [k]: v })), []);
+  const setCal = useCallback((patch: Partial<CalendarState>) => setSt((cur) => ({ ...cur, cal: { ...cur.cal, ...patch } })), []);
+  return { st, set, setCal };
+}
 
 function matches(s: Session, f: Filter) {
   const st = displayState(s);
@@ -78,12 +142,23 @@ function SessionRow({ s }: { s: Session }) {
 }
 
 export default function AllSessionsPage() {
+  // useSearchParams потребує Suspense для статичної збірки
+  return (
+    <Suspense fallback={<PageHeader title="Усі співбесіди" description="Пошук, фільтри та керування всіма співбесідами за воронками." />}>
+      <AllSessions />
+    </Suspense>
+  );
+}
+
+function AllSessions() {
   const { data, isLoading, error, refetch } = useSessions();
-  const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
-  const [sort, setSort] = useState<Sort>('upcoming');
-  const [view, setView] = useState<'list' | 'calendar'>('list');
-  const [pipeline, setPipeline] = useState<PipelineFilterValue>('all');
+  const { st, set, setCal } = useListState();
+  const { q, filter, sort, view, pipeline } = st;
+  const setQ = (v: string) => set('q', v);
+  const setFilter = (v: Filter) => set('filter', v);
+  const setSort = (v: Sort) => set('sort', v);
+  const setView = (v: 'list' | 'calendar') => set('view', v);
+  const setPipeline = (v: PipelineFilterValue) => set('pipeline', v);
 
   const inPipeline = useMemo(() => (data || []).filter((s) => matchesPipeline(s, pipeline)), [data, pipeline]);
   const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, inPipeline.filter((s) => matches(s, f.key)).length])), [inPipeline]);
@@ -155,7 +230,7 @@ export default function AllSessionsPage() {
             {Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex items-center gap-3 p-4"><Skeleton className="h-14 w-14" /><div className="flex-1"><Skeleton className="h-4 w-56" /><Skeleton className="mt-2 h-3 w-32" /></div></div>)}
           </div>
         ) : view === 'calendar' ? (
-          <CalendarView sessions={visible} />
+          <CalendarView sessions={visible} state={st.cal} onChange={setCal} />
         ) : visible.length === 0 ? (
           <EmptyState
             icon={<CalendarX className="h-5 w-5" />}

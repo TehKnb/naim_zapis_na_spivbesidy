@@ -175,7 +175,8 @@ export function Modal({
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !closeDisabled) onClose();
+      // defaultPrevented — Escape уже обробив вкладений елемент (напр. випадаючий список)
+      if (e.key === 'Escape' && !closeDisabled && !e.defaultPrevented) onClose();
       if (e.key === 'Tab' && panel.current) {
         const f = panel.current.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])');
         if (!f.length) return;

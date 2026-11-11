@@ -2,7 +2,7 @@
 
 import { AlertTriangle, ArrowLeft, CalendarDays, Clock, Funnel, Lock, Pencil, UserRound, Users } from 'lucide-react';
 import Link from 'next/link';
-import { use, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { PipelineName } from '@/components/pipeline-filter';
 import { ResponsibleAvatar, sessionResponsibles } from '@/components/responsibles';
@@ -11,7 +11,7 @@ import { useSessionForm } from '@/components/session-form';
 import { Button, Card, EmptyState, ErrorState, Modal, Pill, ProgressBar, Skeleton, StatusBadge } from '@/components/ui';
 import { useCloseSession, useSession } from '@/hooks/use-sessions';
 import { ClientApiError } from '@/lib/api-client';
-import { fillPercent, pluralCandidates } from '@/lib/session-utils';
+import { fillPercent, LAST_SESSIONS_URL_KEY, pluralCandidates } from '@/lib/session-utils';
 import { formatFull, formatTime, formatWeekday, formatDate } from '@/lib/time';
 import type { Participant, Session } from '@/lib/types';
 
@@ -157,10 +157,18 @@ export default function SessionDetailsPage({ params }: { params: Promise<{ id: s
   const { openEdit } = useSessionForm();
   const [closing, setClosing] = useState(false);
   const notFound = error instanceof ClientApiError && error.status === 404;
+  // «Назад» веде до «Усіх співбесід» у тому стані (календар, місяць, фільтри), з якого відкрили співбесіду
+  const [backHref, setBackHref] = useState('/sessions');
+  useEffect(() => {
+    try {
+      const last = sessionStorage.getItem(LAST_SESSIONS_URL_KEY);
+      if (last && /^\/sessions(\?|$)/.test(last)) setBackHref(last);
+    } catch { /* приватний режим */ }
+  }, []);
 
   return (
     <>
-      <Link href="/sessions" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+      <Link href={backHref} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
         <ArrowLeft className="h-4 w-4" /> Усі співбесіди
       </Link>
 

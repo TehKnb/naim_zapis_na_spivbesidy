@@ -73,3 +73,6 @@ export function pluralSeats(n: number): string {
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} вільні місця`;
   return `${n} вільних місць`;
 }
+
+/** sessionStorage: остання адреса «Усіх співбесід» з фільтрами й календарем (для кнопки «Назад» на сторінці співбесіди). */
+export const LAST_SESSIONS_URL_KEY = 'sessions:lastUrl';
