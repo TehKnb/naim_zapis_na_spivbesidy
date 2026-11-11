@@ -23,18 +23,21 @@ export function Navbar() {
   useEffect(() => setOpen(false), [path]);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/85">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/95 shadow-xs backdrop-blur supports-[backdrop-filter]:bg-surface/85">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 md:h-16 md:px-6 lg:px-8">
         {/* Ліва частина */}
         <Link href="/" className="flex min-w-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20">
-          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-primary text-white">
+          <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-brand text-white shadow-xs">
             <CalendarCheck2 className="h-[18px] w-[18px]" strokeWidth={2.2} />
           </span>
-          <span className="truncate text-[15px] font-semibold tracking-tight text-ink">Співбесіди</span>
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-[15px] font-bold tracking-tight text-ink">Співбесіди</span>
+            <span className="hidden truncate text-xs text-ink-muted sm:block">Групові · KeyCRM</span>
+          </span>
         </Link>
 
         {/* Центральна частина */}
-        <nav className="mx-auto hidden items-center gap-1 md:flex" aria-label="Основна навігація">
+        <nav className="mx-auto hidden h-full items-center gap-6 md:flex" aria-label="Основна навігація">
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = isActive(path, href);
             return (
@@ -43,12 +46,14 @@ export function Navbar() {
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cx(
-                  'relative flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 lg:px-3.5',
-                  active ? 'bg-primary-50 text-primary' : 'text-ink-muted hover:bg-neutral-100 hover:text-ink',
+                  'relative flex h-full items-center gap-2 text-[15px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20',
+                  active ? 'text-primary' : 'text-ink-muted hover:text-ink',
                 )}
               >
-                <Icon className="h-4 w-4" aria-hidden />
+                <Icon className="h-[18px] w-[18px]" aria-hidden />
                 {label}
+                {/* Синя смужка під активним пунктом, як у вкладок Calendly */}
+                {active && <span className="absolute inset-x-0 -bottom-px h-[3px] rounded-t-full bg-primary" aria-hidden />}
               </Link>
             );
           })}
@@ -77,7 +82,7 @@ export function Navbar() {
       {/* Мобільне меню (бургер) */}
       {open && (
         <div id="mobile-menu" className="border-t border-line bg-surface px-4 pb-4 pt-2 md:hidden">
-          <nav className="flex flex-col" aria-label="Мобільна навігація">
+          <nav className="flex flex-col gap-1" aria-label="Мобільна навігація">
             {NAV.map(({ href, label, icon: Icon }) => {
               const active = isActive(path, href);
               return (

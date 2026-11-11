@@ -12,8 +12,8 @@ export function cx(...c: (string | false | null | undefined)[]) {
 
 type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 const BTN: Record<BtnVariant, string> = {
-  primary: 'bg-primary text-white hover:bg-primary-hover focus-visible:ring-primary/30 disabled:bg-primary/60',
-  secondary: 'bg-surface text-ink border border-line-strong hover:bg-neutral-50 focus-visible:ring-primary/20 disabled:text-ink-soft',
+  primary: 'bg-navy text-white shadow-xs hover:bg-navy-hover focus-visible:ring-primary/30 disabled:bg-navy/50',
+  secondary: 'bg-surface text-ink border border-line-strong shadow-xs hover:border-ink/40 hover:bg-neutral-50 focus-visible:ring-primary/20 disabled:text-ink-soft',
   ghost: 'text-ink-muted hover:text-ink hover:bg-neutral-100 focus-visible:ring-primary/20',
   danger: 'bg-danger text-white hover:bg-danger-700 focus-visible:ring-danger/30 disabled:bg-danger/60',
 };
@@ -33,7 +33,7 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cx(
-        'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed',
+        'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed',
         size === 'sm' ? 'h-8 px-3 text-[13px]' : 'h-10 px-4 text-sm',
         BTN[variant],
         className,
@@ -62,7 +62,7 @@ export function IconButton({ label, className, children, ...rest }: React.Button
 }
 
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cx('rounded-card border border-line bg-surface', className)}>{children}</div>;
+  return <div className={cx('rounded-card border border-line bg-surface shadow-card', className)}>{children}</div>;
 }
 
 export function StatusBadge({ session, className }: { session: Session; className?: string }) {
@@ -89,7 +89,7 @@ export function Pill({ tone, children }: { tone: 'blue' | 'green' | 'orange' | '
 export function ProgressBar({ session, className }: { session: Session; className?: string }) {
   const pct = fillPercent(session);
   const state = displayState(session);
-  const color = state === 'past' || state === 'closed' ? 'bg-ink-soft' : pct >= 100 ? 'bg-warning' : 'bg-primary';
+  const color = state === 'past' || state === 'closed' ? 'bg-ink-soft' : pct >= 100 ? 'bg-warning' : 'bg-success';
   return (
     <div
       className={cx('h-1.5 w-full overflow-hidden rounded-full bg-neutral-100', className)}
@@ -112,8 +112,8 @@ export function PageHeader({ title, description, children }: { title: string; de
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
-        {description && <p className="mt-1 text-sm text-ink-muted">{description}</p>}
+        <h1 className="text-[26px] font-bold leading-tight tracking-tight text-ink">{title}</h1>
+        {description && <p className="mt-1.5 text-sm text-ink-muted">{description}</p>}
       </div>
       {children}
     </div>
@@ -123,7 +123,7 @@ export function PageHeader({ title, description, children }: { title: string; de
 export function EmptyState({ title, description, icon, children }: { title: string; description?: string; icon?: React.ReactNode; children?: React.ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-ink-muted">{icon ?? <Inbox className="h-5 w-5" />}</div>
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-violet">{icon ?? <Inbox className="h-5 w-5" />}</div>
       <p className="text-sm font-semibold text-ink">{title}</p>
       {description && <p className="mt-1 max-w-sm text-sm text-ink-muted">{description}</p>}
       {children && <div className="mt-4">{children}</div>}
@@ -211,7 +211,7 @@ export function Modal({
       >
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4 sm:px-6">
           <div>
-            <h2 id="modal-title" className="text-base font-semibold text-ink">{title}</h2>
+            <h2 id="modal-title" className="text-lg font-bold text-ink">{title}</h2>
             {description && <div className="mt-0.5 text-sm text-ink-muted">{description}</div>}
           </div>
           <IconButton label="Закрити" onClick={onClose} disabled={closeDisabled} className="-mr-2 -mt-1">
@@ -223,4 +223,9 @@ export function Modal({
       </div>
     </div>
   );
+}
+
+/** Заголовок секції великими літерами (як «EVENT TYPES» у Calendly). */
+export function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <h2 className={cx('text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-muted', className)}>{children}</h2>;
 }

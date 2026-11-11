@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Clock, Users } from 'lucide-react';
 import type { DateTime } from 'luxon';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { pipelineColor, tint } from '@/lib/pipeline-colors';
 import { displayState, STATE_META } from '@/lib/session-utils';
 import { dayKey, dayKeyOf, formatTime, kyiv, nowKyiv } from '@/lib/time';
 import type { Session } from '@/lib/types';
@@ -19,15 +20,26 @@ function range(start: DateTime, end: DateTime): DateTime[] {
   return out;
 }
 
-export function CalendarLegend({ className }: { className?: string }) {
-  const items: [string, string][] = [['bg-primary', 'Відкрита'], ['bg-warning', 'Заповнена'], ['bg-ink-soft', 'Закрита або минула']];
+/** Легенда: кольори воронок, що є у вибраних співбесідах. */
+export function CalendarLegend({ sessions, className }: { sessions: Session[]; className?: string }) {
+  const seen = new Map<string, number | null>();
+  for (const s of sessions) seen.set(s.pipelineName || 'Без воронки', s.pipelineId);
+  if (!seen.size) return null;
   return (
-    <div className={cx('flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted', className)}>
-      {items.map(([c, l]) => (
-        <span key={l} className="inline-flex items-center gap-1.5"><span className={cx('h-2 w-2 rounded-full', c)} />{l}</span>
+    <div className={cx('flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-ink-muted', className)}>
+      {[...seen].map(([name, id]) => (
+        <span key={name} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: pipelineColor(id) }} />{name}</span>
       ))}
+      <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-ink-soft/50" />Закрита або минула — бліда</span>
     </div>
   );
+}
+
+/** Кольори події: фон і смужка — колір воронки; закриті й минулі бліді. */
+function chipStyle(s: Session): React.CSSProperties {
+  const c = pipelineColor(s.pipelineId);
+  const dim = ['past', 'closed'].includes(displayState(s));
+  return { background: tint(c, dim ? 0.06 : 0.13), borderLeftColor: c, opacity: dim ? 0.6 : 1 };
 }
 
 function EventChip({ s, onOpen, full }: { s: Session; onOpen: (s: Session) => void; full?: boolean }) {
@@ -37,23 +49,22 @@ function EventChip({ s, onOpen, full }: { s: Session; onOpen: (s: Session) => vo
       type="button"
       onClick={() => onOpen(s)}
       title={`${s.pipelineName || 'Воронку не вказано'} · ${formatTime(s.startDate)} · ${s.currentCount}/${s.maxParticipants} · ${m.label}`}
+      style={chipStyle(s)}
       className={cx(
-        'flex w-full items-center gap-1.5 rounded-md border px-1.5 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        'flex w-full items-center gap-1.5 rounded-md border-l-[3px] px-1.5 text-left text-xs font-semibold text-ink transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
         full ? 'flex-col items-start gap-0.5 py-2 px-2.5' : 'h-6',
-        m.event,
       )}
     >
       {full ? (
         <>
           <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(s.startDate)}</span>
-          {s.pipelineName && <span className="line-clamp-2 w-full break-words text-center font-normal">{s.pipelineName}</span>}
+          {s.pipelineName && <span className="line-clamp-2 w-full break-words font-medium">{s.pipelineName}</span>}
           <span className="flex items-center gap-1 font-normal opacity-90"><Users className="h-3 w-3" />{s.currentCount}/{s.maxParticipants}</span>
           <span className="font-normal opacity-80">{m.label}</span>
         </>
       ) : (
         <>
-          <span className={cx('h-1.5 w-1.5 flex-none rounded-full', m.dot)} />
-          <span className="truncate">{formatTime(s.startDate)} · {s.currentCount}/{s.maxParticipants}</span>
+          <span className="truncate">{formatTime(s.startDate)} <span className="font-medium text-ink-muted">{s.pipelineName || 'Без воронки'}</span></span>
         </>
       )}
     </button>
@@ -71,10 +82,10 @@ function DayList({ day, items, onOpen }: { day: DateTime; items: Session[]; onOp
           {items.map((s) => {
             const m = STATE_META[displayState(s)];
             return (
-              <button key={s.id} type="button" onClick={() => onOpen(s)}
-                className={cx('flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors', m.event)}>
-                <span className="flex min-w-0 items-center gap-2 font-medium">
-                  <span className={cx('h-2 w-2 flex-none rounded-full', m.dot)} />{formatTime(s.startDate)}
+              <button key={s.id} type="button" onClick={() => onOpen(s)} style={chipStyle(s)}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border-l-4 px-3 py-2.5 text-left text-sm text-ink transition-[filter] hover:brightness-95">
+                <span className="flex min-w-0 items-center gap-2 font-semibold">
+                  {formatTime(s.startDate)}
                   {s.pipelineName && <span className="truncate font-normal">{s.pipelineName}</span>}
                 </span>
                 <span className="flex flex-none items-center gap-3 text-xs"><span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{s.currentCount}/{s.maxParticipants}</span>{m.label}</span>
@@ -129,11 +140,11 @@ export function CalendarView({ sessions }: { sessions: Session[] }) {
           <h2 className="text-base font-semibold text-ink" aria-live="polite">{title}</h2>
         </div>
         <div className="flex items-center justify-between gap-3 sm:justify-end">
-          <CalendarLegend className="hidden lg:flex" />
-          <div className="inline-flex rounded-lg border border-line bg-neutral-50 p-0.5" role="tablist" aria-label="Режим календаря">
+
+          <div className="inline-flex rounded-lg border border-line-strong bg-surface p-0.5" role="tablist" aria-label="Режим календаря">
             {(['month', 'week'] as View[]).map((v) => (
               <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
-                className={cx('h-7 rounded-md px-3 text-[13px] font-medium transition-colors', view === v ? 'bg-surface text-ink shadow-xs ring-1 ring-line' : 'text-ink-muted hover:text-ink')}>
+                className={cx('h-7 rounded-md px-3 text-[13px] font-medium transition-colors', view === v ? 'bg-primary-50 text-primary' : 'text-ink-muted hover:text-ink')}>
                 {v === 'month' ? 'Місяць' : 'Тиждень'}
               </button>
             ))}
@@ -187,7 +198,7 @@ export function CalendarView({ sessions }: { sessions: Session[] }) {
                     <span className={cx('flex h-7 w-7 items-center justify-center rounded-full text-[13px]',
                       isSel ? 'bg-primary font-semibold text-white' : isToday ? 'font-semibold text-primary ring-1 ring-primary/40' : inMonth ? 'text-ink' : 'text-ink-soft')}>{d.day}</span>
                     <span className="flex h-1.5 gap-0.5">
-                      {items.slice(0, 3).map((s) => <span key={s.id} className={cx('h-1.5 w-1.5 rounded-full', STATE_META[displayState(s)].dot)} />)}
+                      {items.slice(0, 3).map((s) => <span key={s.id} className="h-1.5 w-1.5 rounded-full" style={{ background: pipelineColor(s.pipelineId) }} />)}
                     </span>
                   </button>
                 );
@@ -224,7 +235,7 @@ export function CalendarView({ sessions }: { sessions: Session[] }) {
           </div>
         </>
       )}
-      <CalendarLegend className="border-t border-line px-4 py-3 lg:hidden" />
+      <CalendarLegend sessions={sessions} className="border-t border-line px-4 py-3" />
     </div>
   );
 }

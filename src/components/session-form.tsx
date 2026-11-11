@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarDays, Clock, Funnel, Info, Users } from 'lucide-react';
+import { CalendarDays, ChevronDown, Clock, Funnel, Info, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -9,6 +9,7 @@ import { ClientApiError } from '@/lib/api-client';
 import { pluralCandidates } from '@/lib/session-utils';
 import { localPartsToUtc, nowKyiv, previewSessionName, toLocalParts } from '@/lib/time';
 import type { Session, SessionInput } from '@/lib/types';
+import { pipelineColor } from '@/lib/pipeline-colors';
 import { Button, cx, Modal } from './ui';
 
 type FormState = { mode: 'create' } | { mode: 'edit'; session: Session };
@@ -150,11 +151,15 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
         )}
         <label className="block">
           <span className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-ink"><Funnel className="h-4 w-4 text-ink-muted" /> Воронка</span>
+          <span className="relative block">
+          {pipeline && <span className="pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full" style={{ background: pipelineColor(Number(pipeline)) }} aria-hidden />}
           <select value={pipeline} onChange={(e) => { setPipeline(e.target.value); setErrors((x) => ({ ...x, pipelineId: undefined })); }}disabled={pending || pipelineLocked || pipelinesQuery.isLoading}
-            aria-invalid={!!errors.pipelineId} className={cx(field, 'appearance-none truncate pr-3', !pipeline && 'text-ink-soft', errors.pipelineId ? 'border-danger' : 'border-line-strong')}>
+            aria-invalid={!!errors.pipelineId} className={cx(field, 'appearance-none truncate pr-9', pipeline ? 'pl-8' : 'text-ink-soft', errors.pipelineId ? 'border-danger' : 'border-line-strong')}>
             <option value="" disabled>{pipelinesQuery.isLoading ? 'Завантаження воронок…' : 'Оберіть воронку'}</option>
             {pipelineOptions.map((p) => <option key={p.id} value={String(p.id)} className="text-ink">{p.name}{p.missing ? ' (немає в довіднику)' : ''}</option>)}
           </select>
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
+          </span>
           {err('pipelineId')}
           {pipelinesQuery.isError && (
             <p className="mt-1.5 text-xs text-danger" role="alert">
@@ -192,7 +197,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
             <p className="mt-1.5 text-xs text-ink-muted">Уже зареєстровано {pluralCandidates(session.currentCount)} — менше вказати не можна.</p>
           )}
         </label>
-        <div className="rounded-lg border border-line bg-canvas px-3 py-2.5">
+        <div className="rounded-lg bg-brand-soft px-3 py-2.5">
           <p className="text-xs text-ink-muted">Назва</p>
           <p className="mt-0.5 text-sm font-medium text-ink">{preview ?? '—'}</p>
           <p className="mt-1 text-xs text-ink-muted">Час за Києвом (Europe/Kyiv). {isEdit ? 'Статус оновиться відповідно до заповненості.' : 'Нова співбесіда отримає статус «Відкрита».'}</p>

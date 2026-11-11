@@ -13,8 +13,8 @@ export function displayState(s: Session): DisplayState {
 export const STATE_META: Record<DisplayState, { label: string; badge: string; dot: string; event: string }> = {
   open: {
     label: 'Відкрита',
-    badge: 'bg-primary-50 text-primary ring-primary/15',
-    dot: 'bg-primary',
+    badge: 'bg-success-50 text-success-700 ring-success/25',
+    dot: 'bg-success',
     event: 'bg-primary-50 text-primary border-primary/25 hover:bg-primary-100',
   },
   full: {

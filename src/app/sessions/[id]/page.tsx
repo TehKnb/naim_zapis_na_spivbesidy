@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { use, useState } from 'react';
 import { toast } from 'sonner';
 import { PipelineName } from '@/components/pipeline-filter';
+import { PipelineStripe } from '@/components/session-card';
 import { useSessionForm } from '@/components/session-form';
 import { Button, Card, EmptyState, ErrorState, Modal, Pill, ProgressBar, Skeleton, StatusBadge } from '@/components/ui';
 import { useCloseSession, useSession } from '@/hooks/use-sessions';
@@ -24,11 +25,11 @@ const SYNC: Record<string, { label: string; tone: 'green' | 'orange' | 'red' }> 
   Failed: { label: 'Failed', tone: 'red' },
 };
 
-function Metric({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: React.ElementType }) {
+function Metric({ label, value, icon: Icon, tone = 'bg-neutral-50' }: { label: string; value: React.ReactNode; icon?: React.ElementType; tone?: string }) {
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 rounded-xl px-4 py-3 ${tone}`}>
       <p className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">{Icon && <Icon className="h-3.5 w-3.5" />}{label}</p>
-      <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
+      <p className="mt-1 text-lg font-bold text-ink">{value}</p>
     </div>
   );
 }
@@ -132,7 +133,7 @@ export default function SessionDetailsPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
-      <Link href="/sessions" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink">
+      <Link href="/sessions" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
         <ArrowLeft className="h-4 w-4" /> Усі співбесіди
       </Link>
 
@@ -144,17 +145,18 @@ export default function SessionDetailsPage({ params }: { params: Promise<{ id: s
         <Card className="p-6"><Skeleton className="h-7 w-80 max-w-full" /><Skeleton className="mt-3 h-4 w-48" /><Skeleton className="mt-8 h-16 w-full" /></Card>
       ) : (
         <>
-          <Card className="p-5 md:p-6">
+          <Card className="relative overflow-hidden py-5 pl-7 pr-5 md:py-6 md:pl-8 md:pr-6">
+            <PipelineStripe session={data.session} className="w-1.5" />
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl font-semibold tracking-tight text-ink md:text-2xl">{data.session.name}</h1>
+                  <h1 className="text-xl font-bold tracking-tight text-ink md:text-2xl">{data.session.name}</h1>
                   <StatusBadge session={data.session} />
                 </div>
-                <p className="mt-1.5 text-sm text-ink-muted">{formatFull(data.session.startDate)} · Europe/Kyiv</p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-muted">
-                  <Funnel className="h-4 w-4 flex-none" /> Воронка: <PipelineName session={data.session} className="font-medium text-ink" fallback="не вказано" />
+                <p className="mt-2 flex items-center gap-1.5 text-sm text-ink-muted">
+                  <Funnel className="h-4 w-4 flex-none" /> <PipelineName session={data.session} dot className="font-semibold text-ink" fallback="Воронку не вказано" />
                 </p>
+                <p className="mt-1 text-sm text-ink-muted">{formatFull(data.session.startDate)} · Europe/Kyiv</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => openEdit(data.session)} className="flex-1 md:flex-none"><Pencil className="h-4 w-4" /> Редагувати</Button>
@@ -164,25 +166,25 @@ export default function SessionDetailsPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-line pt-5 md:grid-cols-5">
-              <Metric icon={CalendarDays} label="Дата" value={<span className="text-base">{formatWeekday(data.session.startDate)}, {formatDate(data.session.startDate)}</span>} />
-              <Metric icon={Clock} label="Час" value={formatTime(data.session.startDate)} />
-              <Metric label="Максимум учасників" value={data.session.maxParticipants} />
-              <Metric label="Зареєстровано" value={data.session.currentCount} />
-              <Metric label="Вільні місця" value={data.session.availableSeats} />
+            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+              <Metric icon={CalendarDays} label="Дата" tone="bg-primary-50" value={<span className="text-base">{formatWeekday(data.session.startDate)}, {formatDate(data.session.startDate)}</span>} />
+              <Metric icon={Clock} label="Час" tone="bg-primary-50" value={formatTime(data.session.startDate)} />
+              <Metric label="Максимум учасників" tone="bg-violet-50" value={data.session.maxParticipants} />
+              <Metric label="Зареєстровано" tone="bg-success-50" value={data.session.currentCount} />
+              <Metric label="Вільні місця" tone="bg-warning-50" value={data.session.availableSeats} />
             </div>
             <div className="mt-5">
               <div className="mb-1.5 flex justify-between text-xs text-ink-muted">
                 <span>Заповненість</span><span className="font-medium text-ink">{fillPercent(data.session)}%</span>
               </div>
-              <ProgressBar session={data.session} className="h-2" />
+              <ProgressBar session={data.session} className="h-2.5" />
             </div>
           </Card>
 
           <Card className="mt-6 overflow-hidden">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <h2 className="text-base font-semibold text-ink">Кандидати</h2>
-              <span className="text-sm text-ink-muted">{data.participants.length}</span>
+              <h2 className="text-base font-bold text-ink">Кандидати</h2>
+              <span className="rounded-full bg-primary px-2 py-px text-xs font-semibold text-white">{data.participants.length}</span>
             </div>
             <ParticipantsTable participants={data.participants} />
           </Card>
