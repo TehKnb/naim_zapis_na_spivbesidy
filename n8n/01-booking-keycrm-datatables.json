@@ -1,0 +1,2137 @@
+{
+  "name": "KeyCRM → Data Tables: розподіл кандидатів на групові співбесіди",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "keycrm-candidate-booking",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "responseCode": 200,
+        "options": {}
+      },
+      "id": "8c0594e7-084a-56a4-aa01-d71ae0900c8c",
+      "name": "KeyCRM Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1320,
+        160
+      ],
+      "webhookId": "433d94c0-ba0e-51de-8e28-9dae798b4e5d",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_HOOK_CRED",
+          "name": "Webhook secret (X-Webhook-Token)"
+        }
+      },
+      "notes": "Відповідає 200 одразу (KeyCRM чекає ≤10 с)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ed2bc16f-cfe8-51c0-bb64-eb8904c8b4ef",
+              "name": "KEYCRM_API",
+              "value": "https://openapi.keycrm.app/v1",
+              "type": "string"
+            },
+            {
+              "id": "6e0cfae7-00be-543e-a375-f4c2acdc900f",
+              "name": "TARGET_STATUS_ID",
+              "value": 30,
+              "type": "number"
+            },
+            {
+              "id": "9b0effcb-52e4-565c-9879-6ec8609fa4b5",
+              "name": "INTERVIEW_FIELD_UUID",
+              "value": "LD_1027",
+              "type": "string"
+            },
+            {
+              "id": "f24c5165-e193-5bf8-8a96-e644636a4bcf",
+              "name": "INTERVIEW_FIELD_TYPE",
+              "value": "datetime",
+              "type": "string"
+            },
+            {
+              "id": "75cf3bcb-6510-54be-a5b5-fad4867b6d90",
+              "name": "DEFAULT_MAX_PARTICIPANTS",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "fc1dba71-7d68-5fed-8c27-154fcf6b35f0",
+              "name": "MIN_LEAD_MINUTES",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "c258389c-6890-5f26-9835-11852636284e",
+              "name": "MAX_BOOKING_ATTEMPTS",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "3e24d55e-42eb-5280-b96c-f56da4df4dbe",
+              "name": "SETTLE_SECONDS",
+              "value": 3,
+              "type": "number"
+            },
+            {
+              "id": "86dd8a94-2d75-5d4a-be75-2bf1fab5d472",
+              "name": "PENDING_GRACE_MINUTES",
+              "value": 5,
+              "type": "number"
+            },
+            {
+              "id": "1b4f9c9f-7be5-568b-a30b-5a364706dc62",
+              "name": "TIMEZONE",
+              "value": "Europe/Kyiv",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "bb5c95a8-60be-5ad4-9537-5ce40535f2f6",
+      "name": "Конфіг",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1100,
+        160
+      ],
+      "notes": "Усі ID і налаштування — тут",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Дані беремо з webhook як є, без перетворень.\n// Перевіряємо лише, що заповнені поля, потрібні для подальшої роботи.\nconst body = $('KeyCRM Webhook').first().json.body || {};\nconst str = (v) => (v === null || v === undefined) ? '' : String(v);\nconst ctx = {\n  cardId: str(body.id),             // ID картки KeyCRM -> keycrm_id у Data Table і PUT /pipelines/cards/{id}\n  name: str(body.contact_name),     // -> Name\n  phone: str(body.contact_phone),   // -> Phone (у форматі, як прийшов із KeyCRM)\n  title: str(body.title),\n  triedSessionIds: [],\n  attempt: 0,\n  reason: '',\n};\nconst missing = [];\nif (!ctx.cardId.trim()) missing.push('id');\nif (!ctx.name.trim()) missing.push('contact_name');\nif (!ctx.phone.trim()) missing.push('contact_phone');\nctx.valid = missing.length === 0;\nif (!ctx.valid) ctx.reason = \"У webhook не заповнені обов'язкові поля: \" + missing.join(', ');\nreturn [{ json: ctx }];\n"
+      },
+      "id": "03a15b26-6e5c-5e35-b9c1-73b6ce4c09ff",
+      "name": "Перевірка полів webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        160
+      ],
+      "notes": "Наявність id, contact_name, contact_phone",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "0109f955-ed27-57fe-a479-1692181742af",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "d49840ab-0433-5dd5-9b70-4571aec113c1",
+      "name": "Поля заповнені?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -660,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "keycrm_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.cardId }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "4fb9a243-e416-56fd-9c94-7b9219b0bfa8",
+      "name": "DT: пошук учасника за KeyCRM ID",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -440,
+        160
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Перевірка полів webhook').first().json };\nconst recs = rows($input.all()).sort((a, b) => a.id - b.id);\nconst active = recs.filter((r) => r.registration_status !== 'Cancelled');\n\nif (active.length === 0) {\n  if (recs.length > 0) {\n    ctx.decision = 'manual';\n    ctx.reason = 'Для цього KeyCRM ID є лише скасоване бронювання (Cancelled) — автоматично не перебронюємо';\n  } else {\n    ctx.decision = 'book';                        // нового кандидата бронюємо\n  }\n  return [{ json: ctx }];\n}\n\nconst mine = active[0];\nconst sync = mine.keycrm_sync || '';\nconst sessionId = mine.session_id || '';\nconst ageMin = (Date.now() - new Date(mine.createdAt).getTime()) / 60000;\nctx.participantId = mine.id;\nctx.sessionId = sessionId;\n\nif (sync === 'Synced') {\n  ctx.decision = 'skip'; ctx.reason = 'Кандидат уже заброньований, картку KeyCRM оновлено раніше';\n} else if (!sessionId) {\n  ctx.decision = 'manual'; ctx.reason = \"Запис учасника без прив'язаної сесії\";\n} else if (sync !== 'Failed' && ageMin < Number(cfg.PENDING_GRACE_MINUTES)) {\n  ctx.decision = 'skip'; ctx.reason = 'Бронювання щойно створене іншим запуском (повторний webhook)';\n} else {\n  ctx.decision = 'verify';  // бронювання є, KeyCRM не оновлено -> підтверджуємо місце і повторюємо оновлення\n}\nreturn [{ json: ctx }];\n"
+      },
+      "id": "4d936333-83ee-597a-b0d3-fb5c3df10253",
+      "name": "Перевірка дублів",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        160
+      ],
+      "notes": "Дублі / повторні webhook / повтор оновлення KeyCRM",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "48a132cd-6f43-5464-b015-2175d275967a",
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "book",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "book"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "53ec76c9-ed39-563d-82db-5b43cb5b380d",
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "verify",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "verify"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "57a5d92e-d8dd-50a3-ade8-125b987fa030",
+                    "leftValue": "={{ $json.decision }}",
+                    "rightValue": "manual",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "manual"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "інше"
+        }
+      },
+      "id": "7ef76b2d-9c12-5f77-9386-0f8198594f29",
+      "name": "Що робити далі",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        0,
+        160
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5cb354de-60c5-59bd-9bf9-0631645d8d21",
+      "name": "Пропущено: вже оброблено",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        220,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = { ...$input.first().json };\n// Сесія без вільних місць не витрачає спробу (як і раніше, коли такі сесії відсіював фільтр Airtable).\nif (ctx.skipAttemptCount) ctx.skipAttemptCount = false;\nelse ctx.attempt = (ctx.attempt || 0) + 1;\nctx.triedSessionIds = ctx.triedSessionIds || [];\nctx.participantId = null;\nctx.sessionId = null;\nreturn { json: ctx };\n"
+      },
+      "id": "33570616-cfab-5fa2-a011-e66c86c8c39d",
+      "name": "Спроба бронювання",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        -200
+      ],
+      "notes": "Точка входу циклу (повтор після втрати гонки)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "Open"
+            },
+            {
+              "keyName": "start_date",
+              "condition": "gt",
+              "keyValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "orderBy": true,
+        "orderByColumn": "start_date",
+        "orderByDirection": "ASC"
+      },
+      "id": "8c5b307d-aebd-568f-a0f3-338fcb96cb94",
+      "name": "DT: відкриті майбутні сесії",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        -200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "notes": "status=Open і start_date у майбутньому; вільні місця рахуються далі за учасниками",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Спроба бронювання').first().json };\nconst minStart = Date.now() + Number(cfg.MIN_LEAD_MINUTES || 0) * 60000;\nconst list = rows($input.all())\n  .filter((r) => r.session_id && r.start_date && new Date(r.start_date).getTime() > minStart)\n  .filter((r) => !ctx.triedSessionIds.includes(r.session_id))\n  .sort((a, b) => new Date(a.start_date) - new Date(b.start_date) || a.id - b.id);\n\nif (ctx.attempt > Number(cfg.MAX_BOOKING_ATTEMPTS) || list.length === 0) {\n  ctx.sessionFound = false;\n  ctx.reason = list.length === 0\n    ? 'Немає відкритих майбутніх сесій з вільними місцями'\n    : `Вичерпано спроби бронювання (${cfg.MAX_BOOKING_ATTEMPTS}) — місця розібрали паралельні запити`;\n} else {\n  ctx.sessionFound = true;\n  ctx.sessionId = list[0].session_id;\n}\nreturn { json: ctx };\n"
+      },
+      "id": "eca30d74-7c1e-5a1d-9acf-6dabc17d1ae3",
+      "name": "Вибір найближчої сесії",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "6d13cc50-1eca-5e27-a3ca-127d42ba6d32",
+              "leftValue": "={{ $json.sessionFound }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "76fd1392-117f-5b54-b147-54dd0ad4de77",
+      "name": "Є вільна сесія?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        880,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "66eb51b6-f91e-54ad-b43e-d1b51e57c4bf",
+      "name": "DT: повторна перевірка сесії",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        -320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Вибір найближчої сесії').first().json.sessionId }}"
+            },
+            {
+              "keyName": "registration_status",
+              "condition": "neq",
+              "keyValue": "Cancelled"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "628c008b-6427-5b4c-8470-439120ca318f",
+      "name": "DT: активні учасники сесії",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1210,
+        -480
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "notes": "Current Count = активні (не Cancelled) записи сесії",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Вибір найближчої сесії').first().json };\nconst s = rows($('DT: повторна перевірка сесії').all())[0] || {};\nconst count = rows($input.all()).length;\nconst max = Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS);\nconst available = Math.max(0, max - count);                                   // Available Seats = MAX(0, Max - Current)\nconst ok = s.status === 'Open' && available > 0 && s.start_date && new Date(s.start_date).getTime() > Date.now();\nctx.seatOk = !!ok;\nif (!ok) {\n  ctx.triedSessionIds = [...ctx.triedSessionIds, ctx.sessionId];\n  ctx.skipAttemptCount = available === 0 && s.status === 'Open';             // сесія без місць — не спроба бронювання\n}\nreturn { json: ctx };\n"
+      },
+      "id": "7e763366-e676-53c9-b9f5-875e89dbae01",
+      "name": "Місце ще вільне?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        -320
+      ],
+      "notes": "Повторна перевірка безпосередньо перед створенням",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "85c5e55f-1dbd-574b-a8b2-f503c042c2dc",
+              "leftValue": "={{ $json.seatOk }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "54b88dec-76a5-51f5-a696-9e92152cb86e",
+      "name": "Місце доступне?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "keycrm_id": "={{ $json.cardId }}",
+            "name": "={{ $json.name }}",
+            "phone": "={{ $json.phone }}",
+            "session_id": "={{ $json.sessionId }}",
+            "registration_status": "Reserved",
+            "keycrm_sync": "Pending",
+            "sync_error": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "keycrm_id",
+              "displayName": "keycrm_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "registration_status",
+              "displayName": "registration_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "keycrm_sync",
+              "displayName": "keycrm_sync",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sync_error",
+              "displayName": "sync_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "25e58603-7f19-5e35-8b1b-82c0501ec672",
+      "name": "DT: створити учасника (Reserved)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1760,
+        -340
+      ],
+      "notes": "Без автоповтору: повтор після таймауту міг би створити дубль",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = { ...$('Місце ще вільне?').first().json };\nconst rec = $input.first().json;\nctx.participantId = rec.id;\nctx.createdTime = rec.createdAt;\nreturn { json: ctx };\n"
+      },
+      "id": "d64f3196-04c8-5dea-831f-db4c8be0f3a8",
+      "name": "Запам'ятати ID учасника",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        -340
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $('Конфіг').first().json.SETTLE_SECONDS }}",
+        "unit": "seconds"
+      },
+      "id": "ac327dd2-ac51-5664-a0a7-51e6a24c657f",
+      "name": "Пауза перед перевіркою гонки",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2200,
+        140
+      ],
+      "webhookId": "53169772-9ca6-5481-945f-c1631d89c1bf",
+      "notes": "Дає паралельним вставкам завершитися перед перевіркою черги",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "keycrm_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.cardId }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "fe5d4fc1-52cc-573e-8901-729f7eb5278f",
+      "name": "DT: усі записи з цим KeyCRM ID",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2420,
+        140
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst ctx = { ...$('Пауза перед перевіркою гонки').first().json };\nconst active = rows($input.all())\n  .filter((r) => r.registration_status !== 'Cancelled').sort((a, b) => a.id - b.id);\nconst mine = active.find((r) => r.id === ctx.participantId);\nif (!mine) {\n  ctx.dedup = 'gone';\n  ctx.reason = 'Запис учасника вже видалено іншим запуском';\n} else if (active[0].id !== ctx.participantId) {\n  ctx.dedup = 'duplicate';\n  ctx.reason = `Дубль: основний запис ${active[0].id}`;\n} else {\n  ctx.dedup = 'primary';\n  ctx.sessionId = mine.session_id || ctx.sessionId;\n}\nreturn { json: ctx };\n"
+      },
+      "id": "35a52d34-0836-5f30-8be6-454e7a8b4480",
+      "name": "Дедуплікація",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        140
+      ],
+      "notes": "Один KeyCRM ID = один активний запис (перемагає найраніший)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cf17a208-37be-56eb-a24c-4def608068fc",
+                    "leftValue": "={{ $json.dedup }}",
+                    "rightValue": "primary",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "primary"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "84916c6f-d651-5448-8def-ff95063fc4bc",
+                    "leftValue": "={{ $json.dedup }}",
+                    "rightValue": "duplicate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "duplicate"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "інше"
+        }
+      },
+      "id": "2a73639f-5519-55b8-855d-6ef2c2314f9a",
+      "name": "Результат дедуплікації",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        2860,
+        140
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "009d6fbd-a2e7-5250-9f91-51e0c8da541a",
+      "name": "Стоп: запис видалено іншим запуском",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3080,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.participantId }}"
+            }
+          ]
+        }
+      },
+      "id": "8c088e33-6697-556e-8a6a-9727f515a7c6",
+      "name": "DT: видалити дубль",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3080,
+        380
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {},
+      "id": "e6a4717d-15bc-5463-93ed-e257fa7b403a",
+      "name": "Стоп: дубль webhook прибрано",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3300,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "e249a193-0ae9-53fe-ac29-0ef1dc6d53a9",
+      "name": "DT: сесія (актуальний стан)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3080,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Дедуплікація').first().json };\nconst s = rows($input.all())[0];\nctx.session = s ? {\n  id: s.session_id,\n  name: s.session_name || '',\n  start: s.start_date || null,\n  max: Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS),\n  status: s.status || '',\n} : { id: ctx.sessionId, name: '', start: null, max: 0, status: 'Missing' };\nreturn { json: ctx };\n"
+      },
+      "id": "aa816329-6868-5b2b-ab43-40fd86a2e785",
+      "name": "Дані сесії",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3300,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.session.id }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "66a0866f-c861-5210-89d4-5140ad3b39c3",
+      "name": "DT: учасники сесії",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3520,
+        120
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst ctx = { ...$('Дані сесії').first().json };\nconst active = rows($input.all())\n  .filter((r) => r.registration_status !== 'Cancelled')\n  .filter((r) => r.session_id === ctx.session.id)\n  .sort((a, b) => a.id - b.id);\nconst rank = active.findIndex((r) => r.id === ctx.participantId) + 1;\nconst startOk = ctx.session.start && new Date(ctx.session.start).getTime() > Date.now();\nctx.rank = rank;\nctx.activeCount = active.length;\nctx.seatConfirmed = rank > 0 && rank <= ctx.session.max && startOk && ctx.session.status !== 'Closed';\nctx.sessionNowFull = ctx.seatConfirmed && active.length >= ctx.session.max && ctx.session.status === 'Open';\nif (!ctx.seatConfirmed) {\n  ctx.reason = `Місце не підтверджено: позиція ${rank} при ліміті ${ctx.session.max}` + (startOk ? '' : ' (сесія вже почалась)');\n  ctx.triedSessionIds = [...(ctx.triedSessionIds || []), ctx.session.id];\n}\nreturn { json: ctx };\n"
+      },
+      "id": "7485b798-828e-5a8d-ba36-70b7782177e7",
+      "name": "Ранжування: місце моє?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3740,
+        120
+      ],
+      "notes": "Місце отримують перші N за id (порядок вставки) → без переповнення при гонці",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "aeb432bd-0e26-5b0a-8da9-67a7730d89a9",
+              "leftValue": "={{ $json.seatConfirmed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "2556671e-b47c-5bfa-bae1-3c68b42acdc3",
+      "name": "Місце підтверджено?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3960,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.participantId }}"
+            }
+          ]
+        }
+      },
+      "id": "2266e9ef-2ac4-52b2-98ee-9bccd754c12b",
+      "name": "DT: зняти бронювання (місце втрачено)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4180,
+        340
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = { ...$('Ранжування: місце моє?').first().json };\nreturn { json: ctx };\n"
+      },
+      "id": "a9abf48c-5939-586d-a8fc-2cc1e1311046",
+      "name": "Повернути контекст у цикл",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4400,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "05b68ece-49ea-5d00-9b80-2b7e1f203d40",
+              "leftValue": "={{ $json.sessionNowFull }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "f05819e6-4a1b-505e-bd3b-ac540a9e5c6a",
+      "name": "Сесію заповнено?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4180,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.session.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "Full"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "session_name",
+              "displayName": "session_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "max_participants",
+              "displayName": "max_participants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "644e61b5-b693-52b2-b1cf-c16d4971b764",
+      "name": "DT: сесія → Full",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4400,
+        -140
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "notes": "Необов'язково: якщо не вдалося, бронювання все одно дійсне",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst ctx = { ...$input.first().json };\nconst start = DateTime.fromISO(ctx.session.start, { zone: 'utc' });\nif (!start.isValid) throw new Error('Некоректна Start Date сесії: ' + ctx.session.start);\nconst local = start.setZone(cfg.TIMEZONE);\nconst type = String(cfg.INTERVIEW_FIELD_TYPE || 'datetime').toLowerCase();\nlet value;\nif (type === 'datetime') value = start.toUTC().toFormat(\"yyyy-LL-dd'T'HH:mm:ss.SSS'000Z'\"); // ISO 8601 UTC, як у документації KeyCRM\nelse if (type === 'date') value = local.toFormat('yyyy-LL-dd');\nelse value = local.toFormat('dd.LL.yyyy HH:mm');                                            // текстове поле: київський час\nctx.interviewKyiv = local.toFormat('dd.LL.yyyy HH:mm') + ' (' + cfg.TIMEZONE + ')';\nctx.keycrmBody = {\n  status_id: Number(cfg.TARGET_STATUS_ID),\n  custom_fields: [{ uuid: cfg.INTERVIEW_FIELD_UUID, value }],\n};\nreturn { json: ctx };\n"
+      },
+      "id": "9761c7e0-c360-58f0-9f3d-9ce17660f589",
+      "name": "Дані для KeyCRM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4180,
+        100
+      ],
+      "notes": "UTC → формат поля LD_1027; київський час для людей",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Конфіг').first().json.KEYCRM_API }}/pipelines/cards/{{ $json.cardId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.keycrmBody) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "ed25013c-1228-5902-b470-38094d7d3329",
+      "name": "KeyCRM: оновити картку",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4400,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_KEYCRM_CRED",
+          "name": "KeyCRM API (Bearer)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Дані для KeyCRM').first().json.participantId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "keycrm_sync": "Synced",
+            "sync_error": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "keycrm_id",
+              "displayName": "keycrm_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "registration_status",
+              "displayName": "registration_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "keycrm_sync",
+              "displayName": "keycrm_sync",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sync_error",
+              "displayName": "sync_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "c39609ed-63e1-537f-9c58-e932473cf3c3",
+      "name": "DT: позначити Synced",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4620,
+        80
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {},
+      "id": "f0aaee23-677c-5d06-924e-84cb95356014",
+      "name": "Готово: заброньовано і синхронізовано",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        4840,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = { ...$('Дані для KeyCRM').first().json };\nconst e = $input.first().json.error ?? $input.first().json;\nctx.errorText = (typeof e === 'string' ? e : (e.message || '') + (e.description ? ' | ' + e.description : '') || JSON.stringify(e)).slice(0, 2000);\nctx.errorText = new Date().toISOString() + ' KeyCRM PUT: ' + ctx.errorText;\nreturn { json: ctx };\n"
+      },
+      "id": "ebb2caaa-5c86-5a35-b2e7-1ced90774aea",
+      "name": "Текст помилки KeyCRM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.participantId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "keycrm_sync": "Failed",
+            "sync_error": "={{ $json.errorText }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "keycrm_id",
+              "displayName": "keycrm_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "registration_status",
+              "displayName": "registration_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "keycrm_sync",
+              "displayName": "keycrm_sync",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sync_error",
+              "displayName": "sync_error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "e1dc1de9-1633-59dc-ade7-747f2b7c2804",
+      "name": "DT: позначити Failed",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4840,
+        300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ 'KeyCRM картку ' + $('Текст помилки KeyCRM').first().json.cardId + ' не оновлено. Бронювання збережено (KeyCRM Sync=Failed). Для повтору поверніть картку в статус «Новий». ' + $('Текст помилки KeyCRM').first().json.errorText }}"
+      },
+      "id": "fe4290b7-9155-54fb-8f9d-86d01652f802",
+      "name": "Помилка: KeyCRM не оновлено",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        5060,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4182965f-1364-57d9-94e5-30e64153be16",
+              "name": "alertType",
+              "value": "missing_fields",
+              "type": "string"
+            },
+            {
+              "id": "a91d1596-063b-5deb-bebb-10e32b65b8e6",
+              "name": "alertText",
+              "value": "={{ 'Картка ' + $json.cardId + ': ' + $json.reason }}",
+              "type": "string"
+            },
+            {
+              "id": "7ff227e2-6eb8-5185-988a-457a586860e4",
+              "name": "cardId",
+              "value": "={{ $json.cardId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "1973faa1-e321-5bb2-a90e-8992c4adc6b4",
+      "name": "Алерт: не заповнені поля",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -440,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6f68e961-9688-5902-a3a7-625be44a466e",
+              "name": "alertType",
+              "value": "manual_review",
+              "type": "string"
+            },
+            {
+              "id": "e4b2d2c9-4833-5192-971b-b9c44f0bc711",
+              "name": "alertText",
+              "value": "={{ 'Картка ' + $json.cardId + ': ' + $json.reason }}",
+              "type": "string"
+            },
+            {
+              "id": "8a494f86-8979-5c1c-84e6-08eaf72b30cc",
+              "name": "cardId",
+              "value": "={{ $json.cardId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "9e43e776-a0a1-5843-bbb2-e1e38a1784c8",
+      "name": "Алерт: потрібна ручна перевірка",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1aed566b-90d3-5e46-a897-04494e8f46ca",
+              "name": "alertType",
+              "value": "no_sessions",
+              "type": "string"
+            },
+            {
+              "id": "b3925d76-3593-5a87-94ce-c269d1acd103",
+              "name": "alertText",
+              "value": "={{ 'Картка ' + $json.cardId + ' (' + $json.name + '): ' + $json.reason + '. Бронювання не створено, KeyCRM не змінено.' }}",
+              "type": "string"
+            },
+            {
+              "id": "4c12af91-a264-5cbc-81b0-aa47ef38a96b",
+              "name": "cardId",
+              "value": "={{ $json.cardId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "cb894cf8-2ef0-542c-a04c-2491105bd8e9",
+      "name": "Алерт: немає вільних сесій",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1100,
+        -40
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "9fb362a6-1fb1-5d9f-b9eb-d5b392c5d44f",
+      "name": "Канал сповіщень (підключіть Telegram/Slack/Email)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## KeyCRM → n8n Data Tables: бронювання групової співбесіди\nТаблиці: **Interview Sessions** і **Interview Participants** (n8n Data Tables, вибір за назвою).\n1. **Webhook** KeyCRM (воронка 1, перехід у «Новий» — обмежено на боці KeyCRM) → відповідь 200 одразу.\n2. **Перевірка полів**: `id`, `contact_name`, `contact_phone` не порожні. Дані — як прийшли, без перетворень.\n3. **Перевірка дублів** у Interview Participants за `keycrm_id`.\n4. Найближча сесія `status=Open` у майбутньому → вільні місця = max_participants − активні (не Cancelled) учасники → запис `Reserved / Pending`.\n5. Пауза → прибрати дубль → **черга за id** (перші N з ліміту отримують місце, решта знімає бронь і пробує наступну сесію).\n6. **PUT картки** KeyCRM: `status_id=30` + `LD_1027` → `keycrm_sync=Synced`. Помилка → `Failed` + текст у `sync_error`.\n\nНемає сесій → лише сповіщення, таблиці і KeyCRM не змінюються.\n**Повтор оновлення KeyCRM**: поверніть картку в «Новий» — workflow знайде наявне бронювання і лише оновить картку.",
+        "height": 420,
+        "width": 900,
+        "color": 4
+      },
+      "id": "94166618-6a57-55c5-baff-f5f8e229ffa6",
+      "name": "Опис",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1380,
+        -330
+      ]
+    }
+  ],
+  "connections": {
+    "KeyCRM Webhook": {
+      "main": [
+        [
+          {
+            "node": "Конфіг",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Конфіг": {
+      "main": [
+        [
+          {
+            "node": "Перевірка полів webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Перевірка полів webhook": {
+      "main": [
+        [
+          {
+            "node": "Поля заповнені?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Поля заповнені?": {
+      "main": [
+        [
+          {
+            "node": "DT: пошук учасника за KeyCRM ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Алерт: не заповнені поля",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: пошук учасника за KeyCRM ID": {
+      "main": [
+        [
+          {
+            "node": "Перевірка дублів",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Перевірка дублів": {
+      "main": [
+        [
+          {
+            "node": "Що робити далі",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Що робити далі": {
+      "main": [
+        [
+          {
+            "node": "Спроба бронювання",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Пауза перед перевіркою гонки",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Алерт: потрібна ручна перевірка",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Пропущено: вже оброблено",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Спроба бронювання": {
+      "main": [
+        [
+          {
+            "node": "DT: відкриті майбутні сесії",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: відкриті майбутні сесії": {
+      "main": [
+        [
+          {
+            "node": "Вибір найближчої сесії",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Вибір найближчої сесії": {
+      "main": [
+        [
+          {
+            "node": "Є вільна сесія?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Є вільна сесія?": {
+      "main": [
+        [
+          {
+            "node": "DT: повторна перевірка сесії",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Алерт: немає вільних сесій",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: повторна перевірка сесії": {
+      "main": [
+        [
+          {
+            "node": "DT: активні учасники сесії",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: активні учасники сесії": {
+      "main": [
+        [
+          {
+            "node": "Місце ще вільне?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Місце ще вільне?": {
+      "main": [
+        [
+          {
+            "node": "Місце доступне?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Місце доступне?": {
+      "main": [
+        [
+          {
+            "node": "DT: створити учасника (Reserved)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Спроба бронювання",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: створити учасника (Reserved)": {
+      "main": [
+        [
+          {
+            "node": "Запам'ятати ID учасника",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Запам'ятати ID учасника": {
+      "main": [
+        [
+          {
+            "node": "Пауза перед перевіркою гонки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Пауза перед перевіркою гонки": {
+      "main": [
+        [
+          {
+            "node": "DT: усі записи з цим KeyCRM ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: усі записи з цим KeyCRM ID": {
+      "main": [
+        [
+          {
+            "node": "Дедуплікація",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Дедуплікація": {
+      "main": [
+        [
+          {
+            "node": "Результат дедуплікації",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Результат дедуплікації": {
+      "main": [
+        [
+          {
+            "node": "DT: сесія (актуальний стан)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DT: видалити дубль",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Стоп: запис видалено іншим запуском",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: видалити дубль": {
+      "main": [
+        [
+          {
+            "node": "Стоп: дубль webhook прибрано",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: сесія (актуальний стан)": {
+      "main": [
+        [
+          {
+            "node": "Дані сесії",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Дані сесії": {
+      "main": [
+        [
+          {
+            "node": "DT: учасники сесії",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: учасники сесії": {
+      "main": [
+        [
+          {
+            "node": "Ранжування: місце моє?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ранжування: місце моє?": {
+      "main": [
+        [
+          {
+            "node": "Місце підтверджено?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Місце підтверджено?": {
+      "main": [
+        [
+          {
+            "node": "Сесію заповнено?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Дані для KeyCRM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DT: зняти бронювання (місце втрачено)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: зняти бронювання (місце втрачено)": {
+      "main": [
+        [
+          {
+            "node": "Повернути контекст у цикл",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Повернути контекст у цикл": {
+      "main": [
+        [
+          {
+            "node": "Спроба бронювання",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Сесію заповнено?": {
+      "main": [
+        [
+          {
+            "node": "DT: сесія → Full",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Дані для KeyCRM": {
+      "main": [
+        [
+          {
+            "node": "KeyCRM: оновити картку",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "KeyCRM: оновити картку": {
+      "main": [
+        [
+          {
+            "node": "DT: позначити Synced",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Текст помилки KeyCRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: позначити Synced": {
+      "main": [
+        [
+          {
+            "node": "Готово: заброньовано і синхронізовано",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Текст помилки KeyCRM": {
+      "main": [
+        [
+          {
+            "node": "DT: позначити Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: позначити Failed": {
+      "main": [
+        [
+          {
+            "node": "Помилка: KeyCRM не оновлено",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Алерт: не заповнені поля": {
+      "main": [
+        [
+          {
+            "node": "Канал сповіщень (підключіть Telegram/Slack/Email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Алерт: потрібна ручна перевірка": {
+      "main": [
+        [
+          {
+            "node": "Канал сповіщень (підключіть Telegram/Slack/Email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Алерт: немає вільних сесій": {
+      "main": [
+        [
+          {
+            "node": "Канал сповіщень (підключіть Telegram/Slack/Email)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Kyiv",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,35 @@
+{
+  "name": "interview-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Адмінпанель для керування груповими співбесідами (n8n Data Tables)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.104.5",
+    "geist": "1.8.2",
+    "lucide-react": "1.61.0",
+    "luxon": "3.7.2",
+    "next": "15.5.28",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
+    "sonner": "2.0.8"
+  },
+  "devDependencies": {
+    "@types/luxon": "3.7.6",
+    "@types/node": "22.20.5",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "autoprefixer": "10.4.21",
+    "postcss": "8.5.6",
+    "tailwindcss": "3.4.19",
+    "typescript": "5.9.3"
+  }
+}

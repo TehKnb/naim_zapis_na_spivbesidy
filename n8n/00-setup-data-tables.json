@@ -1,0 +1,163 @@
+{
+  "name": "Налаштування: створити Data Tables для співбесід",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "8f73bd5b-65bd-54a3-a0e0-25f301bdc722",
+      "name": "Запустити один раз",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "Interview Sessions",
+        "columns": {
+          "column": [
+            {
+              "name": "session_id",
+              "type": "string"
+            },
+            {
+              "name": "session_name",
+              "type": "string"
+            },
+            {
+              "name": "start_date",
+              "type": "date"
+            },
+            {
+              "name": "max_participants",
+              "type": "number"
+            },
+            {
+              "name": "status",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "id": "2ba30b07-4619-5ca1-93d0-9004a9ab8ff6",
+      "name": "Створити Interview Sessions",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        0
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "create",
+        "tableName": "Interview Participants",
+        "columns": {
+          "column": [
+            {
+              "name": "keycrm_id",
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "type": "string"
+            },
+            {
+              "name": "phone",
+              "type": "string"
+            },
+            {
+              "name": "session_id",
+              "type": "string"
+            },
+            {
+              "name": "registration_status",
+              "type": "string"
+            },
+            {
+              "name": "keycrm_sync",
+              "type": "string"
+            },
+            {
+              "name": "sync_error",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {
+          "createIfNotExists": true
+        }
+      },
+      "id": "9d2a90f5-5872-5749-a537-c2a46e06fb1d",
+      "name": "Створити Interview Participants",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "content": "## Створення n8n Data Tables (один раз)\nНатисніть **Execute workflow**. Буде створено дві таблиці:\n- **Interview Sessions**: session_id, session_name, start_date (date), max_participants (number), status\n- **Interview Participants**: keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error\n\nСистемні колонки `id`, `createdAt`, `updatedAt` n8n додає сам. Повторний запуск безпечний: наявні таблиці не змінюються.\nНе створюйте інших таблиць, у назві яких є «Interview Sessions» або «Interview Participants» (наприклад, копій): workflow знаходять таблиці за назвою.",
+        "height": 300,
+        "width": 620,
+        "color": 4
+      },
+      "id": "5381673d-d906-5283-9209-54b7f4838b44",
+      "name": "Опис",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -360
+      ]
+    }
+  ],
+  "connections": {
+    "Запустити один раз": {
+      "main": [
+        [
+          {
+            "node": "Створити Interview Sessions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Створити Interview Sessions": {
+      "main": [
+        [
+          {
+            "node": "Створити Interview Participants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Kyiv",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,1552 @@
+{
+  "name": "Адмінпанель: API керування співбесідами (Data Tables)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "session-management",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "89bfb33b-0d87-56f8-905b-caef3a572cf8",
+      "name": "Admin API Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1100,
+        300
+      ],
+      "webhookId": "8936a48b-3b27-58c7-b570-76b6ee89b287",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ADMIN_API_CRED",
+          "name": "Admin API secret (X-Webhook-Token)"
+        }
+      },
+      "notes": "POST {action, ...}; заголовок X-Webhook-Token",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e292693b-df08-5e32-95cc-333be1e413f1",
+              "name": "DEFAULT_MAX_PARTICIPANTS",
+              "value": 10,
+              "type": "number"
+            },
+            {
+              "id": "4dbdf01e-6a3f-58f7-b7c9-44a4893352c2",
+              "name": "TIMEZONE",
+              "value": "Europe/Kyiv",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "e0881674-96e5-51ec-b49d-ee3579957896",
+      "name": "Конфіг",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $('Admin API Webhook').first().json.body || {};\nconst str = (v) => (v === null || v === undefined) ? '' : String(v).trim();\nreturn [{ json: {\n  action: str(body.action),\n  sessionId: str(body.sessionId),\n  startDate: str(body.startDate),          // ISO 8601 з часовою зоною (бекенд адмінпанелі надсилає UTC)\n  maxParticipants: body.maxParticipants,\n} }];\n"
+      },
+      "id": "c3a16313-a450-5806-83e5-a9ed6fc40a2c",
+      "name": "Розбір запиту",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3d9da053-0742-56d8-ab06-450c318ac4b8",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "37dc33cb-d69b-5a04-a0c8-90df3544a469",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "get",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "get"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4a2f9122-41db-5052-956a-45ddb05a2b48",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "participants",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "participants"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "b1416919-38d3-5a06-8ffd-95f590f21bad",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "create"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a54cd3bf-6769-5dcb-8abf-30432e7fe26b",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "update",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "update"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "1aac3ecc-3395-54f9-9fab-ecc873e75129",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "close",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "close"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "інше"
+        }
+      },
+      "id": "144ae933-715b-541c-90c8-2d6d14b8f495",
+      "name": "Дія",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode }}"
+        }
+      },
+      "id": "17d3834e-a73d-551d-84eb-0d33ab546f20",
+      "name": "Відповідь",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nreturn [fail(400, 'UNKNOWN_ACTION', 'Невідома дія: ' + ($('Розбір запиту').first().json.action || '(порожньо)'))];\n"
+      },
+      "id": "c10e15e9-1c68-51b8-8ab6-7a2209d41cc2",
+      "name": "Невідома дія",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        1180
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": []
+        },
+        "returnAll": true,
+        "orderBy": true,
+        "orderByColumn": "start_date",
+        "orderByDirection": "ASC"
+      },
+      "id": "586ec3d3-06af-5bc8-897c-070525d5361e",
+      "name": "DT: усі сесії",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -220,
+        -300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "registration_status",
+              "condition": "neq",
+              "keyValue": "Cancelled"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "6ba3eb2c-5241-52c1-b283-3647a80ee3e6",
+      "name": "DT: активні реєстрації",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -300
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst counts = {};\nfor (const p of rows($input.all())) counts[p.session_id] = (counts[p.session_id] || 0) + 1;\nconst sessions = rows($('DT: усі сесії').all())\n  .map((s) => shapeSession(s, counts[s.session_id] || 0))\n  .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));\nreturn [ok(200, { sessions, serverTime: new Date().toISOString() })];\n"
+      },
+      "id": "c0e41fe9-7b96-5692-ae9c-c4abfb9fef42",
+      "name": "Список сесій",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "e005cb52-2f29-5a1c-a28f-a695c2fdca89",
+      "name": "DT: сесія (get)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -220,
+        -60
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Розбір запиту').first().json.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "orderBy": true,
+        "orderByColumn": "id",
+        "orderByDirection": "ASC"
+      },
+      "id": "9bfe7146-df32-5395-8722-eee659d2be12",
+      "name": "DT: учасники сесії (get)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        -60
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst req = $('Розбір запиту').first().json;\nif (!req.sessionId) return [fail(400, 'SESSION_ID_REQUIRED', 'Не вказано sessionId')];\nconst s = rows($('DT: сесія (get)').all())[0];\nif (!s) return [fail(404, 'SESSION_NOT_FOUND', 'Співбесіду не знайдено')];\nconst parts = rows($input.all()).sort((a, b) => a.id - b.id);\nconst session = shapeSession(s, parts.filter(isActive).length);\nconst participants = parts.map(shapeParticipant);\nreturn [ok(200, { session, participants })];\n"
+      },
+      "id": "ee779639-7607-561c-863a-5dbe5b579fdd",
+      "name": "Відповідь: get",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "7d5e288b-e517-5475-aa3e-9e71679f141a",
+      "name": "DT: сесія (participants)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -220,
+        160
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Розбір запиту').first().json.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "orderBy": true,
+        "orderByColumn": "id",
+        "orderByDirection": "ASC"
+      },
+      "id": "c05c4ba0-4444-5a44-83c6-c7d03aabee87",
+      "name": "DT: учасники сесії (participants)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        160
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst req = $('Розбір запиту').first().json;\nif (!req.sessionId) return [fail(400, 'SESSION_ID_REQUIRED', 'Не вказано sessionId')];\nconst s = rows($('DT: сесія (participants)').all())[0];\nif (!s) return [fail(404, 'SESSION_NOT_FOUND', 'Співбесіду не знайдено')];\nconst parts = rows($input.all()).sort((a, b) => a.id - b.id);\nconst session = shapeSession(s, parts.filter(isActive).length);\nconst participants = parts.map(shapeParticipant);\nreturn [ok(200, { sessionId: session.id, participants })];\n"
+      },
+      "id": "83d088e0-339b-5d5c-9e6c-1dbd4b769f1e",
+      "name": "Відповідь: participants",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst req = $('Розбір запиту').first().json;\nconst start = DateTime.fromISO(req.startDate, { setZone: true });\nconst max = Number(req.maxParticipants);\nif (!req.startDate || !start.isValid) return [fail(400, 'INVALID_START_DATE', 'Некоректна дата або час співбесіди')];\nif (start.toMillis() <= Date.now()) return [fail(400, 'START_IN_PAST', 'Не можна створити співбесіду в минулому')];\nif (!Number.isInteger(max) || max <= 0) return [fail(400, 'INVALID_MAX_PARTICIPANTS', 'Максимальна кількість учасників має бути додатним цілим числом')];\nconst hex = () => Math.floor(Math.random() * 0x10000).toString(16).padStart(4, '0');\nconst sessionId = `${hex()}${hex()}-${hex()}-4${hex().slice(1)}-${(8 + Math.floor(Math.random() * 4)).toString(16)}${hex().slice(1)}-${hex()}${hex()}${hex()}`;\nconst startIso = start.toUTC().toISO();\nreturn [{ json: { ok: true, row: {\n  session_id: sessionId,\n  session_name: sessionName(startIso),\n  start_date: startIso,\n  max_participants: max,\n  status: 'Open',                                   // нова співбесіда завжди Open\n} } }];\n"
+      },
+      "id": "37a85be8-b03e-5198-b092-15835143f738",
+      "name": "Валідація створення",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b1a81eeb-375e-59a2-8d9a-daa2de2a8b1c",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "5bb889dc-55b1-5039-aa4d-fe1ec0bd9c7e",
+      "name": "Створення можливе?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_id": "={{ $json.row.session_id }}",
+            "session_name": "={{ $json.row.session_name }}",
+            "start_date": "={{ $json.row.start_date }}",
+            "max_participants": "={{ $json.row.max_participants }}",
+            "status": "Open"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "session_name",
+              "displayName": "session_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "max_participants",
+              "displayName": "max_participants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "5b157304-8923-56e0-ba99-75fc5385a0fd",
+      "name": "DT: створити сесію",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst s = $input.first().json;\nreturn [ok(201, { session: shapeSession(s, 0) })];\n"
+      },
+      "id": "6a60b4c4-b9f1-56da-b45e-30fac17ebbe1",
+      "name": "Відповідь: створено",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "8e1d321d-f0ea-5f47-b57c-d5d60bad2626",
+      "name": "DT: сесія (update)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -220,
+        640
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Розбір запиту').first().json.sessionId }}"
+            },
+            {
+              "keyName": "registration_status",
+              "condition": "neq",
+              "keyValue": "Cancelled"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "fe2767bc-35b8-5f23-a0b3-bc076986bae7",
+      "name": "DT: активні реєстрації (update)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        640
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst req = $('Розбір запиту').first().json;\nif (!req.sessionId) return [fail(400, 'SESSION_ID_REQUIRED', 'Не вказано sessionId')];\nconst s = rows($('DT: сесія (update)').all())[0];\nif (!s) return [fail(404, 'SESSION_NOT_FOUND', 'Співбесіду не знайдено')];\nconst count = rows($input.all()).length;\nconst start = DateTime.fromISO(req.startDate, { setZone: true });\nconst max = Number(req.maxParticipants);\nif (!req.startDate || !start.isValid) return [fail(400, 'INVALID_START_DATE', 'Некоректна дата або час співбесіди')];\nif (!Number.isInteger(max) || max <= 0) return [fail(400, 'INVALID_MAX_PARTICIPANTS', 'Максимальна кількість учасників має бути додатним цілим числом')];\nconst startIso = start.toUTC().toISO();\nconst startChanged = new Date(startIso).getTime() !== new Date(s.start_date).getTime();\nif (startChanged && start.toMillis() <= Date.now()) return [fail(400, 'START_IN_PAST', 'Не можна перенести співбесіду в минуле')];\nif (max < count) return [fail(409, 'CAPACITY_BELOW_REGISTERED', `Не можна зменшити місткість нижче поточної кількості зареєстрованих кандидатів (${count})`, { currentCount: count })];\n// Closed лишається Closed (закрито вручну); інакше статус відповідає заповненості\nconst status = s.status === 'Closed' ? 'Closed' : (count >= max ? 'Full' : 'Open');\nconst row = { session_name: sessionName(startIso), start_date: startIso, max_participants: max, status };\nreturn [{ json: { ok: true, sessionId: s.session_id, row, session: shapeSession({ ...s, ...row }, count) } }];\n"
+      },
+      "id": "e9d409af-a5f2-5df9-b771-55fad39c1d1e",
+      "name": "Валідація редагування",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c822c8e8-84ba-5c36-b654-4384cb49c59d",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "322b3fa4-d3b5-5099-ac91-2e6abee3031b",
+      "name": "Редагування можливе?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "session_name": "={{ $json.row.session_name }}",
+            "start_date": "={{ $json.row.start_date }}",
+            "max_participants": "={{ $json.row.max_participants }}",
+            "status": "={{ $json.row.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "session_name",
+              "displayName": "session_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "max_participants",
+              "displayName": "max_participants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "21c8ee48-9ee7-5efa-8dd1-ef6df4730c71",
+      "name": "DT: оновити сесію",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        620
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst v = $('Валідація редагування').first().json;\nconst updated = rows($input.all())[0];\nreturn [ok(200, { session: updated ? shapeSession(updated, v.session.currentCount) : v.session })];\n"
+      },
+      "id": "7794d154-5e58-5bbf-84ad-3377c5a9aab5",
+      "name": "Відповідь: оновлено",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "id": "bad112fe-1eaa-574b-8ee3-892b1eb64e5e",
+      "name": "DT: сесія (close)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -220,
+        900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Participants",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Розбір запиту').first().json.sessionId }}"
+            },
+            {
+              "keyName": "registration_status",
+              "condition": "neq",
+              "keyValue": "Cancelled"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "715eea5c-21f2-5b52-8288-ff202d83f54a",
+      "name": "DT: активні реєстрації (close)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        900
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst req = $('Розбір запиту').first().json;\nif (!req.sessionId) return [fail(400, 'SESSION_ID_REQUIRED', 'Не вказано sessionId')];\nconst s = rows($('DT: сесія (close)').all())[0];\nif (!s) return [fail(404, 'SESSION_NOT_FOUND', 'Співбесіду не знайдено')];\nconst count = rows($input.all()).length;\nreturn [{ json: { ok: true, sessionId: s.session_id, session: shapeSession({ ...s, status: 'Closed' }, count) } }];\n"
+      },
+      "id": "9d729578-fb48-5661-98ed-5938b58e2cba",
+      "name": "Перевірка закриття",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b97ea1e4-bc59-507e-a133-ed147e904775",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "a2adb3ac-24a1-597e-81a2-63cdc3a42f8c",
+      "name": "Закриття можливе?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Interview Sessions",
+          "mode": "name"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "session_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.sessionId }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "Closed"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "session_id",
+              "displayName": "session_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "session_name",
+              "displayName": "session_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "start_date",
+              "displayName": "start_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "max_participants",
+              "displayName": "max_participants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a8e64558-eee2-5e95-9ea9-53da3c015328",
+      "name": "DT: закрити сесію",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        880
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Конфіг').first().json;\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst maxOf = (s) => (Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS));\nconst shapeSession = (s, count) => {\n  const max = maxOf(s);\n  return {\n    id: s.session_id,\n    name: s.session_name || '',\n    startDate: s.start_date || null,                         // ISO 8601 UTC\n    status: s.status || 'Open',                              // Open / Full / Closed\n    maxParticipants: max,\n    currentCount: count,                                     // активні (не Cancelled) реєстрації\n    availableSeats: Math.max(0, max - count),\n    isPast: s.start_date ? new Date(s.start_date).getTime() <= Date.now() : false,\n    createdAt: s.createdAt || null,\n    updatedAt: s.updatedAt || null,\n  };\n};\nconst shapeParticipant = (p) => ({\n  id: p.id,\n  name: p.name || '',\n  phone: p.phone || '',\n  keycrmId: p.keycrm_id || '',\n  registrationStatus: p.registration_status || '',\n  keycrmSync: p.keycrm_sync || '',\n  createdAt: p.createdAt || null,\n});\nconst isActive = (p) => p.registration_status !== 'Cancelled';\nconst fail = (statusCode, code, message, extra = {}) => ({ json: { ok: false, statusCode, body: { error: { code, message, ...extra } } } });\nconst ok = (statusCode, body) => ({ json: { ok: true, statusCode, body } });\n// Назва генерується автоматично: «Групова співбесіда — 12 листопада, 14:00» (Europe/Kyiv)\nconst sessionName = (iso) => 'Групова співбесіда — ' + DateTime.fromISO(iso, { zone: 'utc' }).setZone(cfg.TIMEZONE).setLocale('uk').toFormat('d MMMM, HH:mm');\n\nconst v = $('Перевірка закриття').first().json;\nreturn [ok(200, { session: v.session })];\n"
+      },
+      "id": "2889cd0e-7449-55ee-bb28-52957482cdb2",
+      "name": "Відповідь: закрито",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## API адмінпанелі: керування груповими співбесідами\nОдин захищений webhook `POST /webhook/session-management` (заголовок `X-Webhook-Token`). Викликає лише бекенд адмінпанелі — секрет ніколи не потрапляє у браузер.\n\n| action | тіло | відповідь |\n|---|---|---|\n| `list` | — | `{ sessions[] }` |\n| `get` | `sessionId` | `{ session, participants[] }` |\n| `participants` | `sessionId` | `{ sessionId, participants[] }` |\n| `create` | `startDate` (ISO), `maxParticipants` | `201 { session }` |\n| `update` | `sessionId`, `startDate`, `maxParticipants` | `{ session }` |\n| `close` | `sessionId` | `{ session }` |\n\nПомилки: `{ error: { code, message } }` зі статусом 400 / 404 / 409.\nКількість учасників = записи Interview Participants без `Cancelled`; вільні місця = max − активні.\nРеєстрації кандидатів тут не змінюються — джерело істини лишається workflow бронювання.",
+        "height": 470,
+        "width": 820,
+        "color": 4
+      },
+      "id": "1a75757e-8f7a-5310-b584-a7551f42857d",
+      "name": "Опис",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1160,
+        -560
+      ]
+    }
+  ],
+  "connections": {
+    "Admin API Webhook": {
+      "main": [
+        [
+          {
+            "node": "Конфіг",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Конфіг": {
+      "main": [
+        [
+          {
+            "node": "Розбір запиту",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Розбір запиту": {
+      "main": [
+        [
+          {
+            "node": "Дія",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Дія": {
+      "main": [
+        [
+          {
+            "node": "DT: усі сесії",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DT: сесія (get)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DT: сесія (participants)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Валідація створення",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DT: сесія (update)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DT: сесія (close)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Невідома дія",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Невідома дія": {
+      "main": [
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: усі сесії": {
+      "main": [
+        [
+          {
+            "node": "DT: активні реєстрації",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: активні реєстрації": {
+      "main": [
+        [
+          {
+            "node": "Список сесій",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Список сесій": {
+      "main": [
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: сесія (get)": {
+      "main": [
+        [
+          {
+            "node": "DT: учасники сесії (get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: учасники сесії (get)": {
+      "main": [
+        [
+          {
+            "node": "Відповідь: get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Відповідь: get": {
+      "main": [
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: сесія (participants)": {
+      "main": [
+        [
+          {
+            "node": "DT: учасники сесії (participants)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: учасники сесії (participants)": {
+      "main": [
+        [
+          {
+            "node": "Відповідь: participants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Відповідь: participants": {
+      "main": [
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Валідація створення": {
+      "main": [
+        [
+          {
+            "node": "Створення можливе?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Створення можливе?": {
+      "main": [
+        [
+          {
+            "node": "DT: створити сесію",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: створити сесію": {
+      "main": [
+        [
+          {
+            "node": "Відповідь: створено",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Відповідь: створено": {
+      "main": [
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: сесія (update)": {
+      "main": [
+        [
+          {
+            "node": "DT: активні реєстрації (update)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: активні реєстрації (update)": {
+      "main": [
+        [
+          {
+            "node": "Валідація редагування",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Валідація редагування": {
+      "main": [
+        [
+          {
+            "node": "Редагування можливе?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Редагування можливе?": {
+      "main": [
+        [
+          {
+            "node": "DT: оновити сесію",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: оновити сесію": {
+      "main": [
+        [
+          {
+            "node": "Відповідь: оновлено",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Відповідь: оновлено": {
+      "main": [
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: сесія (close)": {
+      "main": [
+        [
+          {
+            "node": "DT: активні реєстрації (close)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: активні реєстрації (close)": {
+      "main": [
+        [
+          {
+            "node": "Перевірка закриття",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Перевірка закриття": {
+      "main": [
+        [
+          {
+            "node": "Закриття можливе?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Закриття можливе?": {
+      "main": [
+        [
+          {
+            "node": "DT: закрити сесію",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DT: закрити сесію": {
+      "main": [
+        [
+          {
+            "node": "Відповідь: закрито",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Відповідь: закрито": {
+      "main": [
+        [
+          {
+            "node": "Відповідь",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Kyiv",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
