@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarCheck2, LayoutDashboard, List, Menu, Plus, X } from 'lucide-react';
+import { CalendarCheck2, LayoutDashboard, List, LogOut, Menu, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -20,7 +20,18 @@ export function Navbar() {
   const path = usePathname();
   const { openCreate } = useSessionForm();
   const [open, setOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   useEffect(() => setOpen(false), [path]);
+
+  async function logout() {
+    if (leaving) return;
+    setLeaving(true);
+    try { await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' }); } catch { /* cookie прибере middleware */ }
+    window.location.replace('/login'); // повне перезавантаження очищає кеш даних
+  }
+
+  // Сторінка входу — без навігації
+  if (path === '/login') return null;
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-surface/95 shadow-xs backdrop-blur supports-[backdrop-filter]:bg-surface/85">
@@ -68,6 +79,16 @@ export function Navbar() {
           </Button>
           <button
             type="button"
+            onClick={logout}
+            disabled={leaving}
+            title="Вийти"
+            aria-label="Вийти"
+            className="hidden h-10 w-10 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-neutral-100 hover:text-ink focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 disabled:opacity-50 md:inline-flex"
+          >
+            <LogOut className="h-[18px] w-[18px]" />
+          </button>
+          <button
+            type="button"
             onClick={() => setOpen((v) => !v)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-ink hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20 md:hidden"
             aria-label={open ? 'Закрити меню' : 'Відкрити меню'}
@@ -101,6 +122,10 @@ export function Navbar() {
           <Button onClick={() => { setOpen(false); openCreate(); }} className="mt-3 w-full">
             <Plus className="h-4 w-4" strokeWidth={2.4} /> Створити співбесіду
           </Button>
+          <button type="button" onClick={logout} disabled={leaving}
+            className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-lg text-[15px] font-medium text-ink-muted hover:bg-neutral-100 hover:text-ink disabled:opacity-50">
+            <LogOut className="h-[18px] w-[18px]" /> Вийти
+          </button>
         </div>
       )}
     </header>

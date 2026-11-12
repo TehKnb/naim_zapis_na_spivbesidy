@@ -2,6 +2,7 @@
  * Серверний клієнт API співбесід у n8n.
  * Імпортується ЛИШЕ з route handlers (src/app/api/**): секрет ніколи не потрапляє у браузер.
  */
+import { isAuthenticated } from './auth-server';
 import type { ApiErrorBody } from './types';
 
 export type SessionApiAction = 'list' | 'get' | 'participants' | 'create' | 'update' | 'close' | 'pipelines' | 'responsibles';
@@ -31,6 +32,8 @@ function endpoint(): string {
 }
 
 export async function callSessionApi<T>(action: SessionApiAction, payload: Record<string, unknown> = {}): Promise<{ status: number; body: T }> {
+  // Другий рубіж після middleware: без дійсної сесії запит до n8n не виконується
+  if (!(await isAuthenticated())) throw new ApiFailure(401, 'AUTH_REQUIRED', 'Сесія завершилась. Увійдіть ще раз.');
   const url = endpoint();
   const secret = process.env.N8N_WEBHOOK_SECRET?.trim();
   if (!secret) throw new ApiFailure(500, 'N8N_NOT_CONFIGURED', 'Не налаштовано N8N_WEBHOOK_SECRET.');

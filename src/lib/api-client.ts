@@ -29,6 +29,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ClientApiError(0, 'NETWORK', "Немає зв'язку із сервером. Перевірте інтернет-з'єднання.");
   }
   const body = (await res.json().catch(() => null)) as (T & Partial<ApiErrorBody>) | null;
+  if (res.status === 401 && typeof window !== 'undefined') {
+    // Сесія завершилась (30 днів минуло або змінили пароль) — на сторінку входу з поверненням сюди
+    const back = window.location.pathname + window.location.search;
+    window.location.replace('/login' + (back && back !== '/' ? '?next=' + encodeURIComponent(back) : ''));
+  }
   if (!res.ok) {
     const e = body?.error;
     const { code, message, fields, ...extra } = (e || {}) as { code?: string; message?: string; fields?: Record<string, string> };
