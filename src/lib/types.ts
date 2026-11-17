@@ -68,6 +68,32 @@ export interface SessionInput {
   responsibleIds: number[];
 }
 
+/** Лід KeyCRM у статусі «Запросили на 1 тур» — кандидат для ручного запису на співбесіду. */
+export interface Candidate {
+  cardId: string;
+  name: string;
+  phone: string;
+  pipelineId: number | null;
+  pipelineName: string;
+  /** Поточний час співбесіди з поля KeyCRM (ISO UTC); null — не заповнено або не розпізнано. */
+  interviewAt: string | null;
+  interviewRaw: string;
+  /** Уже записаний на цю співбесіду. */
+  inThisSession: boolean;
+  /** Записаний сюди, але поле в KeyCRM не оновилось (Failed) — можна повторити. */
+  retryHere?: boolean;
+  /** Активні записи на інші співбесіди (будуть скасовані при перенесенні). */
+  currentSessions: { sessionId: string; name: string; startDate: string | null }[];
+}
+
+export interface AddParticipantResult {
+  participant: Participant;
+  session: Session;
+  keycrmSync: 'Synced' | 'Failed';
+  previousCancelled: number;
+  warning?: string;
+}
+
 export interface ApiErrorBody {
   error: { code: string; message: string; [key: string]: unknown };
 }

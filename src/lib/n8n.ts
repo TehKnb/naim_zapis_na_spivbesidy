@@ -5,7 +5,7 @@
 import { isAuthenticated } from './auth-server';
 import type { ApiErrorBody } from './types';
 
-export type SessionApiAction = 'list' | 'get' | 'participants' | 'create' | 'update' | 'close' | 'pipelines' | 'responsibles';
+export type SessionApiAction = 'list' | 'get' | 'participants' | 'create' | 'update' | 'close' | 'pipelines' | 'responsibles' | 'candidates' | 'addParticipant';
 
 export class ApiFailure extends Error {
   constructor(

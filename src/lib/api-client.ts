@@ -1,6 +1,6 @@
 'use client';
 
-import type { ApiErrorBody, Pipeline, Responsible, Session, SessionDetails, SessionInput } from './types';
+import type { AddParticipantResult, ApiErrorBody, Candidate, Pipeline, Responsible, Session, SessionDetails, SessionInput } from './types';
 
 export class ClientApiError extends Error {
   constructor(
@@ -50,5 +50,8 @@ export const api = {
   create: (input: SessionInput) => request<{ session: Session }>('/api/sessions', { method: 'POST', body: JSON.stringify(input) }),
   update: (id: string, input: SessionInput) =>
     request<{ session: Session }>(`/api/sessions/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  candidates: (id: string) => request<{ candidates: Candidate[]; truncated: boolean }>(`/api/sessions/${encodeURIComponent(id)}/candidates`),
+  addParticipant: (id: string, cardId: string) =>
+    request<AddParticipantResult>(`/api/sessions/${encodeURIComponent(id)}/participants`, { method: 'POST', body: JSON.stringify({ cardId }) }),
   close: (id: string) => request<{ session: Session }>(`/api/sessions/${encodeURIComponent(id)}/close`, { method: 'POST' }),
 };

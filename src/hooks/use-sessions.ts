@@ -9,6 +9,7 @@ export const keys = {
   pipelines: ['pipelines'] as const,
   responsibles: ['responsibles'] as const,
   session: (id: string) => ['session', id] as const,
+  candidates: (id: string) => ['candidates', id] as const,
 };
 
 /** Один спільний кеш для «Огляду» і «Усіх співбесід» — оновлення узгоджене на всіх вкладках. */
@@ -57,6 +58,25 @@ export function useUpdateSession(id: string) {
   return useMutation({
     mutationFn: (input: SessionInput) => api.update(id, input),
     onSuccess: ({ session }) => sync(session),
+  });
+}
+
+/** Ліди KeyCRM у статусі «Запросили на 1 тур» (завантажуються, лише коли відкрито список). */
+export function useCandidates(sessionId: string, enabled: boolean) {
+  return useQuery({ queryKey: keys.candidates(sessionId), queryFn: () => api.candidates(sessionId), enabled: enabled && !!sessionId, staleTime: 30_000 });
+}
+
+/** Ручний запис кандидата: оновлює сесію, список кандидатів і всі співбесіди (попередній запис кандидата скасовано). */
+export function useAddParticipant(sessionId: string) {
+  const sync = useSyncSession();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (cardId: string) => api.addParticipant(sessionId, cardId),
+    onSuccess: ({ session }) => {
+      sync(session);
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+      qc.invalidateQueries({ queryKey: ['session'] });
+    },
   });
 }
 

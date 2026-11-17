@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, CalendarDays, Clock, Funnel, Lock, Pencil, Us
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { AddCandidate } from '@/components/add-candidate';
 import { PipelineName } from '@/components/pipeline-filter';
 import { ResponsibleAvatar, sessionResponsibles } from '@/components/responsibles';
 import { PipelineStripe } from '@/components/session-card';
@@ -97,7 +98,7 @@ function CloseDialog({ session, onClose }: { session: Session; onClose: () => vo
 
 function ParticipantsTable({ participants }: { participants: Participant[] }) {
   if (participants.length === 0) {
-    return <EmptyState icon={<Users className="h-5 w-5" />} title="Ще немає кандидатів" description="Кандидати з'являться тут, щойно автоматизація запише їх на цю співбесіду." />;
+    return <EmptyState icon={<Users className="h-5 w-5" />} title="Ще немає кандидатів" description="Кандидати з'являться тут, щойно автоматизація запише їх на цю співбесіду, або додайте ліда вручну кнопкою «Додати кандидата»." />;
   }
   return (
     <>
@@ -217,12 +218,17 @@ export default function SessionDetailsPage({ params }: { params: Promise<{ id: s
             <ResponsiblesBlock session={data.session} onEdit={() => openEdit(data.session)} />
           </Card>
 
-          <Card className="mt-6 overflow-hidden">
+          <Card className="mt-6">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <h2 className="text-base font-bold text-ink">Кандидати</h2>
-              <span className="rounded-full bg-primary px-2 py-px text-xs font-semibold text-white">{data.participants.length}</span>
+              <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+                Кандидати
+                <span className="rounded-full bg-primary px-2 py-px text-xs font-semibold text-white">{data.participants.length}</span>
+              </h2>
+              <AddCandidate session={data.session} />
             </div>
-            <ParticipantsTable participants={data.participants} />
+            <div className="overflow-hidden rounded-b-card">
+              <ParticipantsTable participants={data.participants} />
+            </div>
           </Card>
 
           {closing && <CloseDialog session={data.session} onClose={() => setClosing(false)} />}
