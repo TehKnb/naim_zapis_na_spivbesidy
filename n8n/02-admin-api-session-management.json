@@ -1487,7 +1487,7 @@
         "method": "GET",
         "url": "={{ $('Конфіг').first().json.KEYCRM_API }}/pipelines/cards",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "genericAuthType": "httpBearerAuth",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1497,7 +1497,7 @@
             },
             {
               "name": "include",
-              "value": "contact,status,custom_fields"
+              "value": "contact.client,status,custom_fields"
             },
             {
               "name": "limit",
@@ -1531,7 +1531,7 @@
         1480
       ],
       "credentials": {
-        "httpHeaderAuth": {
+        "httpBearerAuth": {
           "id": "REPLACE_KEYCRM_CRED",
           "name": "KeyCRM API (Bearer)"
         }
@@ -1610,7 +1610,7 @@
         "method": "GET",
         "url": "={{ $('Конфіг').first().json.KEYCRM_API }}/pipelines/cards",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "genericAuthType": "httpBearerAuth",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -1620,7 +1620,7 @@
             },
             {
               "name": "include",
-              "value": "contact,status,custom_fields"
+              "value": "contact.client,status,custom_fields"
             },
             {
               "name": "limit",
@@ -1660,7 +1660,7 @@
         1360
       ],
       "credentials": {
-        "httpHeaderAuth": {
+        "httpBearerAuth": {
           "id": "REPLACE_KEYCRM_CRED",
           "name": "KeyCRM API (Bearer)"
         }
@@ -1802,13 +1802,13 @@
         "method": "GET",
         "url": "={{ $('Конфіг').first().json.KEYCRM_API }}/pipelines/cards/{{ encodeURIComponent($('Розбір запиту').first().json.cardId || '0') }}",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "genericAuthType": "httpBearerAuth",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
             {
               "name": "include",
-              "value": "contact,status"
+              "value": "contact.client,status"
             }
           ]
         },
@@ -1834,7 +1834,7 @@
         1880
       ],
       "credentials": {
-        "httpHeaderAuth": {
+        "httpBearerAuth": {
           "id": "REPLACE_KEYCRM_CRED",
           "name": "KeyCRM API (Bearer)"
         }
@@ -2407,7 +2407,7 @@
         "method": "PUT",
         "url": "={{ $('Конфіг').first().json.KEYCRM_API }}/pipelines/cards/{{ $('Валідація додавання').first().json.cardId }}",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "genericAuthType": "httpBearerAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -2433,7 +2433,7 @@
         1860
       ],
       "credentials": {
-        "httpHeaderAuth": {
+        "httpBearerAuth": {
           "id": "REPLACE_KEYCRM_CRED",
           "name": "KeyCRM API (Bearer)"
         }

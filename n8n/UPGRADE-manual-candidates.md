@@ -33,7 +33,8 @@ Workflow 00, 01, 03, 04 і 05 не змінились, нових таблиць
 2. **Імпорт.** Імпортуйте `02-admin-api-session-management.json`.
 3. **Креди:**
    - вузол **Admin API Webhook** — «Admin API secret (X-Webhook-Token)»;
-   - чотири вузли KeyCRM — «KeyCRM API (Bearer)», той самий credential, що в workflow 01: **KeyCRM: ліди (стор. 1)**, **KeyCRM: ліди (інші сторінки)**, **KeyCRM: картка (add)**, **KeyCRM: записати час співбесіди**.
+   - чотири вузли KeyCRM — Bearer Auth credential з API-ключем KeyCRM (той самий, що у вузлі «KeyCRM: оновити картку» workflow 01): **KeyCRM: ліди (стор. 1)**, **KeyCRM: ліди (інші сторінки)**, **KeyCRM: картка (add)**, **KeyCRM: записати час співбесіди**.
+   - Якщо n8n пише «uses invalid credential», у вузлі лишився порожній credential іншого типу — видаліть вузол і вставте заново з цього файлу або виберіть credential заново.
 4. **«Конфіг».** Перенесіть свої значення (`PIPELINES` тощо) і перевірте нові поля з таблиці вище.
 5. **Активація.** Деактивуйте старий workflow 02 і активуйте новий. Адреса webhook та сама: `/webhook/session-management`.
 6. **Адмінпанель.** Задеплойте нову версію або перезапустіть `npm run dev`. Змінних середовища додавати не треба.
