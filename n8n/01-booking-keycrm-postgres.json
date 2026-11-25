@@ -5,28 +5,19 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "keycrm-candidate-booking",
-        "authentication": "headerAuth",
-        "responseMode": "onReceived",
-        "responseCode": 200,
         "options": {}
       },
-      "id": "8c0594e7-084a-56a4-aa01-d71ae0900c8c",
+      "id": "aee2c3de-93cd-406b-b2b8-e2a41f1be3d2",
       "name": "KeyCRM Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -1320,
-        160
+        -2432,
+        640
       ],
       "webhookId": "433d94c0-ba0e-51de-8e28-9dae798b4e5d",
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "REPLACE_HOOK_CRED",
-          "name": "Webhook secret (X-Webhook-Token)"
-        }
-      },
-      "notes": "Відповідає 200 одразу (KeyCRM чекає ≤10 с)",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Відповідає 200 одразу (KeyCRM чекає ≤10 с)"
     },
     {
       "parameters": {
@@ -91,31 +82,31 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "bb5c95a8-60be-5ad4-9537-5ce40535f2f6",
+      "id": "ad3c9155-892f-43d8-a3c5-5d93669913a4",
       "name": "Конфіг",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1100,
-        160
+        -2208,
+        640
       ],
-      "notes": "Усі ID і налаштування — тут",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Усі ID і налаштування — тут"
     },
     {
       "parameters": {
         "jsCode": "// Дані беремо з webhook як є, без перетворень.\n// Перевіряємо лише, що заповнені поля, потрібні для подальшої роботи.\nconst body = $('KeyCRM Webhook').first().json.body || {};\nconst str = (v) => (v === null || v === undefined) ? '' : String(v);\nconst ctx = {\n  cardId: str(body.id),             // ID картки KeyCRM -> keycrm_id у Data Table і PUT /pipelines/cards/{id}\n  name: str(body.contact_name),     // -> Name\n  phone: str(body.contact_phone),   // -> Phone (у форматі, як прийшов із KeyCRM)\n  title: str(body.title),\n  pipeline: str(body.pipeline).trim(), // назва воронки -> пошук сесій цієї воронки (pipeline_name)\n  triedSessionIds: [],\n  attempt: 0,\n  reason: '',\n};\nconst missing = [];\nif (!ctx.cardId.trim()) missing.push('id');\nif (!ctx.name.trim()) missing.push('contact_name');\nif (!ctx.phone.trim()) missing.push('contact_phone');\nif (!ctx.pipeline) missing.push('pipeline');\nctx.valid = missing.length === 0;\nif (!ctx.valid) ctx.reason = \"У webhook не заповнені обов'язкові поля: \" + missing.join(', ');\nreturn [{ json: ctx }];\n"
       },
-      "id": "03a15b26-6e5c-5e35-b9c1-73b6ce4c09ff",
+      "id": "bf477963-8111-4d48-a8a7-3de7610272ca",
       "name": "Перевірка полів webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -880,
-        160
+        -1984,
+        640
       ],
-      "notes": "Наявність id, contact_name, contact_phone, pipeline",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Наявність id, contact_name, contact_phone, pipeline"
     },
     {
       "parameters": {
@@ -143,13 +134,13 @@
         "looseTypeValidation": true,
         "options": {}
       },
-      "id": "d49840ab-0433-5dd5-9b70-4571aec113c1",
+      "id": "c5ae0077-ffe1-4ea1-8ab0-fb39d9415354",
       "name": "Поля заповнені?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -660,
-        160
+        -1760,
+        640
       ]
     },
     {
@@ -160,37 +151,37 @@
           "queryReplacement": "={{ [$json.cardId] }}"
         }
       },
-      "id": "4fb9a243-e416-56fd-9c94-7b9219b0bfa8",
+      "id": "01c1bbf5-7058-44e8-ba36-2e01ffd63d36",
       "name": "БД: пошук учасника за KeyCRM ID",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -440,
-        160
+        -1552,
+        640
       ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {
         "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Перевірка полів webhook').first().json };\nconst recs = rows($input.all()).sort((a, b) => a.id - b.id);\nconst active = recs.filter((r) => r.registration_status !== 'Cancelled');\n\nif (active.length === 0) {\n  if (recs.length > 0) {\n    ctx.decision = 'manual';\n    ctx.reason = 'Для цього KeyCRM ID є лише скасоване бронювання (Cancelled) — автоматично не перебронюємо';\n  } else {\n    ctx.decision = 'book';                        // нового кандидата бронюємо\n  }\n  return [{ json: ctx }];\n}\n\nconst mine = active[0];\nconst sync = mine.keycrm_sync || '';\nconst sessionId = mine.session_id || '';\nconst ageMin = (Date.now() - new Date(mine.createdAt).getTime()) / 60000;\nctx.participantId = mine.id;\nctx.sessionId = sessionId;\n\nif (sync === 'Synced') {\n  ctx.decision = 'skip'; ctx.reason = 'Кандидат уже заброньований, картку KeyCRM оновлено раніше';\n} else if (!sessionId) {\n  ctx.decision = 'manual'; ctx.reason = \"Запис учасника без прив'язаної сесії\";\n} else if (sync !== 'Failed' && ageMin < Number(cfg.PENDING_GRACE_MINUTES)) {\n  ctx.decision = 'skip'; ctx.reason = 'Бронювання щойно створене іншим запуском (повторний webhook)';\n} else {\n  ctx.decision = 'verify';  // бронювання є, KeyCRM не оновлено -> підтверджуємо місце і повторюємо оновлення\n}\nreturn [{ json: ctx }];\n"
       },
-      "id": "4d936333-83ee-597a-b0d3-fb5c3df10253",
+      "id": "33092649-5e4e-4fe3-8654-96eae97ec952",
       "name": "Перевірка дублів",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -220,
-        160
+        -1328,
+        640
       ],
-      "notes": "Дублі / повторні webhook / повтор оновлення KeyCRM",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Дублі / повторні webhook / повтор оновлення KeyCRM"
     },
     {
       "parameters": {
@@ -275,40 +266,40 @@
           "renameFallbackOutput": "інше"
         }
       },
-      "id": "7ef76b2d-9c12-5f77-9386-0f8198594f29",
+      "id": "497fc661-2216-4232-a168-384c2c0513b8",
       "name": "Що робити далі",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        0,
-        160
+        -1104,
+        640
       ]
     },
     {
       "parameters": {},
-      "id": "5cb354de-60c5-59bd-9bf9-0631645d8d21",
+      "id": "5e426318-e917-49c5-9757-6761781fcdc9",
       "name": "Пропущено: вже оброблено",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        220,
-        560
+        -880,
+        1136
       ]
     },
     {
       "parameters": {
         "jsCode": "const ctx = { ...$input.first().json };\n// Сесія без вільних місць не витрачає спробу (як і раніше, коли такі сесії відсіював фільтр Airtable).\nif (ctx.skipAttemptCount) ctx.skipAttemptCount = false;\nelse ctx.attempt = (ctx.attempt || 0) + 1;\nctx.triedSessionIds = ctx.triedSessionIds || [];\nctx.participantId = null;\nctx.sessionId = null;\nreturn { json: ctx };\n"
       },
-      "id": "33570616-cfab-5fa2-a011-e66c86c8c39d",
+      "id": "6ce184e1-9d61-4c45-a5ee-148cb9b5ab1e",
       "name": "Спроба бронювання",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
-        -200
+        -880,
+        288
       ],
-      "notes": "Точка входу циклу (повтор після втрати гонки)",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Точка входу циклу (повтор після втрати гонки)"
     },
     {
       "parameters": {
@@ -318,35 +309,35 @@
           "queryReplacement": "={{ [$json.pipeline] }}"
         }
       },
-      "id": "8c5b307d-aebd-568f-a0f3-338fcb96cb94",
+      "id": "67912221-d6e7-4793-ad52-39c91e7ab376",
       "name": "БД: відкриті майбутні сесії",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        440,
-        -200
+        -672,
+        288
       ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "notes": "Воронка кандидата, status=Open, start_date у майбутньому; вільні місця рахуються далі",
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "retryOnFail": true,
-      "notes": "Воронка кандидата, status=Open, start_date у майбутньому; вільні місця рахуються далі"
+      }
     },
     {
       "parameters": {
         "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Спроба бронювання').first().json };\nconst minStart = Date.now() + Number(cfg.MIN_LEAD_MINUTES || 0) * 60000;\nconst list = rows($input.all())\n  .filter((r) => r.session_id && r.start_date && new Date(r.start_date).getTime() > minStart)\n  .filter((r) => !ctx.triedSessionIds.includes(r.session_id))\n  .sort((a, b) => new Date(a.start_date) - new Date(b.start_date) || a.id - b.id);\n\nif (ctx.attempt > Number(cfg.MAX_BOOKING_ATTEMPTS) || list.length === 0) {\n  ctx.sessionFound = false;\n  ctx.reason = list.length === 0\n    ? `Немає відкритих майбутніх сесій з вільними місцями у воронці «${ctx.pipeline}»`\n    : `Вичерпано спроби бронювання (${cfg.MAX_BOOKING_ATTEMPTS}) — місця розібрали паралельні запити`;\n} else {\n  ctx.sessionFound = true;\n  ctx.sessionId = list[0].session_id;\n}\nreturn { json: ctx };\n"
       },
-      "id": "eca30d74-7c1e-5a1d-9acf-6dabc17d1ae3",
+      "id": "c21b8292-49ce-4c52-8f2c-86c88a21defe",
       "name": "Вибір найближчої сесії",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        660,
-        -200
+        -448,
+        288
       ]
     },
     {
@@ -375,13 +366,13 @@
         "looseTypeValidation": true,
         "options": {}
       },
-      "id": "76fd1392-117f-5b54-b147-54dd0ad4de77",
+      "id": "ce7925ca-b9fa-48dc-bbf6-ff5c20e77c30",
       "name": "Є вільна сесія?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        880,
-        -200
+        -224,
+        288
       ]
     },
     {
@@ -392,22 +383,22 @@
           "queryReplacement": "={{ [$json.sessionId] }}"
         }
       },
-      "id": "66eb51b6-f91e-54ad-b43e-d1b51e57c4bf",
+      "id": "7e356a97-845a-4a24-ad17-728ec3e906d0",
       "name": "БД: повторна перевірка сесії",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1100,
-        -320
+        0,
+        160
       ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {
@@ -417,39 +408,39 @@
           "queryReplacement": "={{ [$('Вибір найближчої сесії').first().json.sessionId] }}"
         }
       },
-      "id": "628c008b-6427-5b4c-8470-439120ca318f",
+      "id": "2442c456-f50f-43da-89ac-71602a5bfed8",
       "name": "БД: активні учасники сесії",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1210,
-        -480
+        96,
+        0
       ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "retryOnFail": true,
+      "notes": "Current Count = активні (не Cancelled) записи сесії",
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "retryOnFail": true,
-      "notes": "Current Count = активні (не Cancelled) записи сесії"
+      }
     },
     {
       "parameters": {
         "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Вибір найближчої сесії').first().json };\nconst s = rows($('БД: повторна перевірка сесії').all())[0] || {};\nconst count = rows($input.all()).length;\nconst max = Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS);\nconst available = Math.max(0, max - count);                                   // Available Seats = MAX(0, Max - Current)\nconst ok = s.status === 'Open' && s.pipeline_name === ctx.pipeline && available > 0 && s.start_date && new Date(s.start_date).getTime() > Date.now();\nctx.seatOk = !!ok;\nif (!ok) {\n  ctx.triedSessionIds = [...ctx.triedSessionIds, ctx.sessionId];\n  ctx.skipAttemptCount = available === 0 && s.status === 'Open';             // сесія без місць — не спроба бронювання\n}\nreturn { json: ctx };\n"
       },
-      "id": "7e763366-e676-53c9-b9f5-875e89dbae01",
+      "id": "401a57ac-e42c-4290-aaec-068e46ba24bc",
       "name": "Місце ще вільне?",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1320,
-        -320
+        208,
+        160
       ],
-      "notes": "Повторна перевірка безпосередньо перед створенням",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Повторна перевірка безпосередньо перед створенням"
     },
     {
       "parameters": {
@@ -477,13 +468,13 @@
         "looseTypeValidation": true,
         "options": {}
       },
-      "id": "54b88dec-76a5-51f5-a696-9e92152cb86e",
+      "id": "86ed8497-608e-4b72-955a-c27dcea9c331",
       "name": "Місце доступне?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1540,
-        -320
+        432,
+        160
       ]
     },
     {
@@ -494,51 +485,50 @@
           "queryReplacement": "={{ [$json.cardId, $json.name, $json.phone, $json.sessionId] }}"
         }
       },
-      "id": "25e58603-7f19-5e35-8b1b-82c0501ec672",
+      "id": "bf143811-3969-4640-9b84-7a9f9dd77ca2",
       "name": "БД: створити учасника (Reserved)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1760,
-        -340
+        656,
+        144
       ],
+      "notes": "Без автоповтору: повтор після таймауту міг би створити дубль",
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "notes": "Без автоповтору: повтор після таймауту міг би створити дубль"
+      }
     },
     {
       "parameters": {
         "jsCode": "const ctx = { ...$('Місце ще вільне?').first().json };\nconst rec = $input.first().json;\nctx.participantId = rec.id;\nctx.createdTime = rec.createdAt;\nreturn { json: ctx };\n"
       },
-      "id": "d64f3196-04c8-5dea-831f-db4c8be0f3a8",
+      "id": "2a0d3126-e4c6-4834-bebd-dec630814520",
       "name": "Запам'ятати ID учасника",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1980,
-        -340
+        880,
+        144
       ]
     },
     {
       "parameters": {
-        "amount": "={{ $('Конфіг').first().json.SETTLE_SECONDS }}",
-        "unit": "seconds"
+        "amount": "={{ $('Конфіг').first().json.SETTLE_SECONDS }}"
       },
-      "id": "ac327dd2-ac51-5664-a0a7-51e6a24c657f",
+      "id": "63772ae2-41a1-4523-b14a-4d083d80cb9b",
       "name": "Пауза перед перевіркою гонки",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2200,
-        140
+        1088,
+        624
       ],
       "webhookId": "53169772-9ca6-5481-945f-c1631d89c1bf",
-      "notes": "Дає паралельним вставкам завершитися перед перевіркою черги",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Дає паралельним вставкам завершитися перед перевіркою черги"
     },
     {
       "parameters": {
@@ -548,37 +538,37 @@
           "queryReplacement": "={{ [$json.cardId] }}"
         }
       },
-      "id": "fe5d4fc1-52cc-573e-8901-729f7eb5278f",
+      "id": "713c5a93-4c3b-4ba3-8075-85ea0a8e2a4d",
       "name": "БД: усі записи з цим KeyCRM ID",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2420,
-        140
+        1312,
+        624
       ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {
         "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst ctx = { ...$('Пауза перед перевіркою гонки').first().json };\nconst active = rows($input.all())\n  .filter((r) => r.registration_status !== 'Cancelled').sort((a, b) => a.id - b.id);\nconst mine = active.find((r) => r.id === ctx.participantId);\nif (!mine) {\n  ctx.dedup = 'gone';\n  ctx.reason = 'Запис учасника вже видалено іншим запуском';\n} else if (active[0].id !== ctx.participantId) {\n  ctx.dedup = 'duplicate';\n  ctx.reason = `Дубль: основний запис ${active[0].id}`;\n} else {\n  ctx.dedup = 'primary';\n  ctx.sessionId = mine.session_id || ctx.sessionId;\n}\nreturn { json: ctx };\n"
       },
-      "id": "35a52d34-0836-5f30-8be6-454e7a8b4480",
+      "id": "38814d89-72e4-4177-b446-c1681d2a31df",
       "name": "Дедуплікація",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2640,
-        140
+        1536,
+        624
       ],
-      "notes": "Один KeyCRM ID = один активний запис (перемагає найраніший)",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Один KeyCRM ID = один активний запис (перемагає найраніший)"
     },
     {
       "parameters": {
@@ -639,24 +629,24 @@
           "renameFallbackOutput": "інше"
         }
       },
-      "id": "2a73639f-5519-55b8-855d-6ef2c2314f9a",
+      "id": "f4c48496-3533-46f9-9c67-f211a5206153",
       "name": "Результат дедуплікації",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        2860,
-        140
+        1760,
+        624
       ]
     },
     {
       "parameters": {},
-      "id": "009d6fbd-a2e7-5250-9f91-51e0c8da541a",
+      "id": "2f8dcec3-cddf-41ae-8933-6a7b91a1dd59",
       "name": "Стоп: запис видалено іншим запуском",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        3080,
-        560
+        1968,
+        1040
       ]
     },
     {
@@ -667,32 +657,32 @@
           "queryReplacement": "={{ [$json.participantId] }}"
         }
       },
-      "id": "8c088e33-6697-556e-8a6a-9727f515a7c6",
+      "id": "2ed60920-35c5-4508-9608-a9130dd2222c",
       "name": "БД: видалити дубль",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3080,
-        380
+        1968,
+        864
       ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {},
-      "id": "e6a4717d-15bc-5463-93ed-e257fa7b403a",
+      "id": "821547e7-08cc-4fe2-a7eb-d106beba8a8e",
       "name": "Стоп: дубль webhook прибрано",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        3300,
-        380
+        2192,
+        864
       ]
     },
     {
@@ -703,34 +693,34 @@
           "queryReplacement": "={{ [$json.sessionId] }}"
         }
       },
-      "id": "e249a193-0ae9-53fe-ac29-0ef1dc6d53a9",
+      "id": "21fee00c-e8b3-464c-80de-6cbb8fe3e2fb",
       "name": "БД: сесія (актуальний стан)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3080,
-        120
+        1968,
+        608
       ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {
         "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Дедуплікація').first().json };\nconst s = rows($input.all())[0];\nctx.session = s ? {\n  id: s.session_id,\n  name: s.session_name || '',\n  start: s.start_date || null,\n  max: Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS),\n  status: s.status || '',\n} : { id: ctx.sessionId, name: '', start: null, max: 0, status: 'Missing' };\nreturn { json: ctx };\n"
       },
-      "id": "aa816329-6868-5b2b-ab43-40fd86a2e785",
+      "id": "8707fd1e-5a45-4700-9a6f-735c73da0681",
       "name": "Дані сесії",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3300,
-        120
+        2192,
+        608
       ]
     },
     {
@@ -741,37 +731,37 @@
           "queryReplacement": "={{ [$json.session.id] }}"
         }
       },
-      "id": "66a0866f-c861-5210-89d4-5140ad3b39c3",
+      "id": "7ced9ae8-b402-47a0-8287-347f57cc4034",
       "name": "БД: учасники сесії",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3520,
-        120
+        2416,
+        608
       ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {
         "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst ctx = { ...$('Дані сесії').first().json };\nconst active = rows($input.all())\n  .filter((r) => r.registration_status !== 'Cancelled')\n  .filter((r) => r.session_id === ctx.session.id)\n  .sort((a, b) => a.id - b.id);\nconst rank = active.findIndex((r) => r.id === ctx.participantId) + 1;\nconst startOk = ctx.session.start && new Date(ctx.session.start).getTime() > Date.now();\nctx.rank = rank;\nctx.activeCount = active.length;\nctx.seatConfirmed = rank > 0 && rank <= ctx.session.max && startOk && ctx.session.status !== 'Closed';\nctx.sessionNowFull = ctx.seatConfirmed && active.length >= ctx.session.max && ctx.session.status === 'Open';\nif (!ctx.seatConfirmed) {\n  ctx.reason = `Місце не підтверджено: позиція ${rank} при ліміті ${ctx.session.max}` + (startOk ? '' : ' (сесія вже почалась)');\n  ctx.triedSessionIds = [...(ctx.triedSessionIds || []), ctx.session.id];\n}\nreturn { json: ctx };\n"
       },
-      "id": "7485b798-828e-5a8d-ba36-70b7782177e7",
+      "id": "67669f73-3eaa-49a4-bf60-18b3ebe1d427",
       "name": "Ранжування: місце моє?",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3740,
-        120
+        2640,
+        608
       ],
-      "notes": "Місце отримують перші N за id (порядок вставки) → без переповнення при гонці",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "Місце отримують перші N за id (порядок вставки) → без переповнення при гонці"
     },
     {
       "parameters": {
@@ -799,13 +789,13 @@
         "looseTypeValidation": true,
         "options": {}
       },
-      "id": "2556671e-b47c-5bfa-bae1-3c68b42acdc3",
+      "id": "b5e9795b-8925-4bca-9055-0d5430abdbb3",
       "name": "Місце підтверджено?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3960,
-        120
+        2848,
+        608
       ]
     },
     {
@@ -816,34 +806,34 @@
           "queryReplacement": "={{ [$json.participantId] }}"
         }
       },
-      "id": "2266e9ef-2ac4-52b2-98ee-9bccd754c12b",
+      "id": "f6749953-02ec-4d9c-ae2a-69f3d97b5dfe",
       "name": "БД: зняти бронювання (місце втрачено)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        4180,
-        340
+        3072,
+        832
       ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {
         "jsCode": "const ctx = { ...$('Ранжування: місце моє?').first().json };\nreturn { json: ctx };\n"
       },
-      "id": "a9abf48c-5939-586d-a8fc-2cc1e1311046",
+      "id": "9311c620-d063-44b9-8c72-4903549a6463",
       "name": "Повернути контекст у цикл",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4400,
-        340
+        3296,
+        832
       ]
     },
     {
@@ -872,13 +862,13 @@
         "looseTypeValidation": true,
         "options": {}
       },
-      "id": "f05819e6-4a1b-505e-bd3b-ac540a9e5c6a",
+      "id": "9e870117-71bc-4311-aa65-52de3cf6b7ba",
       "name": "Сесію заповнено?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4180,
-        -120
+        3072,
+        368
       ]
     },
     {
@@ -889,45 +879,45 @@
           "queryReplacement": "={{ [$json.session.id] }}"
         }
       },
-      "id": "644e61b5-b693-52b2-b1cf-c16d4971b764",
+      "id": "89240552-6a67-464b-8e03-beaa687852f7",
       "name": "БД: сесія → Full",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        4400,
-        -140
+        3296,
+        352
       ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "notes": "Необов'язково: якщо не вдалося, бронювання все одно дійсне",
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "onError": "continueRegularOutput",
-      "retryOnFail": true,
-      "notes": "Необов'язково: якщо не вдалося, бронювання все одно дійсне"
+      }
     },
     {
       "parameters": {
         "jsCode": "const cfg = $('Конфіг').first().json;\nconst ctx = { ...$input.first().json };\nconst start = DateTime.fromISO(ctx.session.start, { zone: 'utc' });\nif (!start.isValid) throw new Error('Некоректна Start Date сесії: ' + ctx.session.start);\nconst local = start.setZone(cfg.TIMEZONE);\nconst type = String(cfg.INTERVIEW_FIELD_TYPE || 'datetime').toLowerCase();\nlet value;\nif (type === 'datetime') value = start.toUTC().toFormat(\"yyyy-LL-dd'T'HH:mm:ss.SSS'000Z'\"); // ISO 8601 UTC, як у документації KeyCRM\nelse if (type === 'date') value = local.toFormat('yyyy-LL-dd');\nelse value = local.toFormat('dd.LL.yyyy HH:mm');                                            // текстове поле: київський час\nctx.interviewKyiv = local.toFormat('dd.LL.yyyy HH:mm') + ' (' + cfg.TIMEZONE + ')';\n// Лише поле співбесіди; статус картки не змінюємо (кандидат лишається у «Відібрано»)\nctx.keycrmBody = {\n  custom_fields: [{ uuid: cfg.INTERVIEW_FIELD_UUID, value }],\n};\nreturn { json: ctx };\n"
       },
-      "id": "9761c7e0-c360-58f0-9f3d-9ce17660f589",
+      "id": "b4353552-bb21-4ad7-83e9-fcce1dd96d7e",
       "name": "Дані для KeyCRM",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4180,
-        100
+        3072,
+        592
       ],
-      "notes": "UTC → формат поля LD_1027; київський час для людей",
-      "notesInFlow": true
+      "notesInFlow": true,
+      "notes": "UTC → формат поля LD_1027; київський час для людей"
     },
     {
       "parameters": {
         "method": "PUT",
         "url": "={{ $('Конфіг').first().json.KEYCRM_API }}/pipelines/cards/{{ $json.cardId }}",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "genericAuthType": "httpBearerAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -944,24 +934,24 @@
           "timeout": 20000
         }
       },
-      "id": "ed25013c-1228-5902-b470-38094d7d3329",
+      "id": "f5950a4d-a8d7-43a2-a231-296009caefb5",
       "name": "KeyCRM: оновити картку",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        4400,
-        100
+        3296,
+        592
       ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "REPLACE_KEYCRM_CRED",
-          "name": "KeyCRM API (Bearer)"
-        }
-      },
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000,
-      "onError": "continueErrorOutput"
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "REPLACE_KEYCRM_CRED",
+          "name": "KeyCRM Bearer"
+        }
+      }
     },
     {
       "parameters": {
@@ -971,44 +961,44 @@
           "queryReplacement": "={{ [$('Дані для KeyCRM').first().json.participantId] }}"
         }
       },
-      "id": "c39609ed-63e1-537f-9c58-e932473cf3c3",
+      "id": "0f234bf2-a6a2-46cc-9866-f30a172e5e06",
       "name": "БД: позначити Synced",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        4620,
-        80
+        3520,
+        560
       ],
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {},
-      "id": "f0aaee23-677c-5d06-924e-84cb95356014",
+      "id": "c10c3468-e6c8-48cb-a013-2814c438a500",
       "name": "Готово: заброньовано і синхронізовано",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        4840,
-        60
+        3728,
+        544
       ]
     },
     {
       "parameters": {
         "jsCode": "const ctx = { ...$('Дані для KeyCRM').first().json };\nconst e = $input.first().json.error ?? $input.first().json;\nctx.errorText = (typeof e === 'string' ? e : (e.message || '') + (e.description ? ' | ' + e.description : '') || JSON.stringify(e)).slice(0, 2000);\nctx.errorText = new Date().toISOString() + ' KeyCRM PUT: ' + ctx.errorText;\nreturn { json: ctx };\n"
       },
-      "id": "ebb2caaa-5c86-5a35-b2e7-1ced90774aea",
+      "id": "0437fd67-01de-4db8-9931-14935439f932",
       "name": "Текст помилки KeyCRM",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4620,
-        300
+        3520,
+        784
       ]
     },
     {
@@ -1019,35 +1009,35 @@
           "queryReplacement": "={{ [$json.participantId, $json.errorText] }}"
         }
       },
-      "id": "e1dc1de9-1633-59dc-ade7-747f2b7c2804",
+      "id": "85dd0bde-e170-46d9-8db6-6f8a7ed0249d",
       "name": "БД: позначити Failed",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        4840,
-        300
+        3728,
+        784
       ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
       "credentials": {
         "postgres": {
           "id": "REPLACE_POSTGRES_CRED",
           "name": "Postgres (Interview DB)"
         }
-      },
-      "alwaysOutputData": true,
-      "onError": "continueRegularOutput",
-      "retryOnFail": true
+      }
     },
     {
       "parameters": {
         "errorMessage": "={{ 'KeyCRM картку ' + $('Текст помилки KeyCRM').first().json.cardId + ' не оновлено. Бронювання збережено (KeyCRM Sync=Failed). Для повтору виведіть картку зі статусу «Відібрано» і поверніть назад. ' + $('Текст помилки KeyCRM').first().json.errorText }}"
       },
-      "id": "fe4290b7-9155-54fb-8f9d-86d01652f802",
+      "id": "80ff02e5-4221-4842-9530-b769084e82f3",
       "name": "Помилка: KeyCRM не оновлено",
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
       "position": [
-        5060,
-        300
+        3952,
+        784
       ]
     },
     {
@@ -1074,16 +1064,15 @@
             }
           ]
         },
-        "includeOtherFields": false,
         "options": {}
       },
-      "id": "1973faa1-e321-5bb2-a90e-8992c4adc6b4",
+      "id": "ae3d93ce-890c-46e9-9c25-c95aa66e4028",
       "name": "Алерт: не заповнені поля",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -440,
-        380
+        -1552,
+        864
       ]
     },
     {
@@ -1110,16 +1099,15 @@
             }
           ]
         },
-        "includeOtherFields": false,
         "options": {}
       },
-      "id": "9e43e776-a0a1-5843-bbb2-e1e38a1784c8",
+      "id": "75ebca9c-eec0-470d-82e5-6c862a253b1a",
       "name": "Алерт: потрібна ручна перевірка",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        220,
-        400
+        -880,
+        880
       ]
     },
     {
@@ -1146,27 +1134,26 @@
             }
           ]
         },
-        "includeOtherFields": false,
         "options": {}
       },
-      "id": "cb894cf8-2ef0-542c-a04c-2491105bd8e9",
+      "id": "bc09a8c0-4703-4140-b08b-ff79d63efe66",
       "name": "Алерт: немає вільних сесій",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1100,
-        -40
+        0,
+        448
       ]
     },
     {
       "parameters": {},
-      "id": "9fb362a6-1fb1-5d9f-b9eb-d5b392c5d44f",
+      "id": "fa85703d-2dcd-4088-a413-ad6de9cd34b6",
       "name": "Канал сповіщень (підключіть Telegram/Slack/Email)",
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1320,
-        640
+        208,
+        1120
       ]
     },
     {
@@ -1176,13 +1163,13 @@
         "width": 900,
         "color": 4
       },
-      "id": "94166618-6a57-55c5-baff-f5f8e229ffa6",
+      "id": "108f2e64-7c3b-4ec8-807c-3cec61b3a48e",
       "name": "Опис",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -1380,
-        -330
+        -2496,
+        -192
       ]
     }
   ],
@@ -1682,16 +1669,6 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
-    "timezone": "Europe/Kyiv",
-    "saveManualExecutions": true,
-    "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "all",
-    "callerPolicy": "workflowsFromSameOwner"
-  },
-  "pinData": {},
-  "meta": {
-    "templateCredsSetupCompleted": false
-  },
-  "tags": []
+    "executionOrder": "v1"
+  }
 }
