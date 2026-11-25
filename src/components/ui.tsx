@@ -132,14 +132,14 @@ export function EmptyState({ title, description, icon, children }: { title: stri
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
-  const down = error instanceof ClientApiError && error.isN8nDown;
+  const down = error instanceof ClientApiError && error.isUnavailable;
   const message = error instanceof Error ? error.message : 'Не вдалося завантажити дані.';
   return (
     <div className="flex flex-col items-center justify-center px-6 py-14 text-center" role="alert">
       <div className={cx('mb-4 flex h-12 w-12 items-center justify-center rounded-full', down ? 'bg-warning-50 text-warning-700' : 'bg-danger-50 text-danger')}>
         {down ? <WifiOff className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
       </div>
-      <p className="text-sm font-semibold text-ink">{down ? 'n8n зараз недоступний' : 'Не вдалося завантажити дані'}</p>
+      <p className="text-sm font-semibold text-ink">{down ? 'Сервіс тимчасово недоступний' : 'Не вдалося завантажити дані'}</p>
       <p className="mt-1 max-w-md text-sm text-ink-muted">{message}</p>
       {onRetry && (
         <Button variant="secondary" size="sm" className="mt-4" onClick={onRetry}>

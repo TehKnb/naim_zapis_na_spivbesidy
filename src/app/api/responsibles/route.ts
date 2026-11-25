@@ -1,16 +1,10 @@
 import { NextResponse } from 'next/server';
-import { callSessionApi } from '@/lib/n8n';
-import { errorResponse } from '@/lib/server-route';
-import type { Responsible } from '@/lib/types';
+import { guarded } from '@/lib/server-route';
+import { listResponsibles } from '@/lib/sessions-service';
 
 export const dynamic = 'force-dynamic';
 
-/** Співробітники, яких можна призначити відповідальними (n8n таблиця Interview Responsibles). */
-export async function GET() {
-  try {
-    const { body } = await callSessionApi<{ responsibles: Responsible[] }>('responsibles');
-    return NextResponse.json({ responsibles: body.responsibles ?? [] });
-  } catch (e) {
-    return errorResponse(e);
-  }
+/** Співробітники, яких можна призначити відповідальними (таблиця interview_responsibles). */
+export function GET() {
+  return guarded(async () => NextResponse.json({ responsibles: await listResponsibles() }));
 }

@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 
 /**
  * Єдине джерело правди для часу в застосунку.
- * - Зберігання та передача: ISO 8601 у UTC (n8n Data Tables, API).
+ * - Зберігання та передача: ISO 8601 у UTC (PostgreSQL timestamptz, API).
  * - Показ і введення: завжди Europe/Kyiv, незалежно від часового поясу браузера чи сервера.
  * Luxon коректно враховує перехід на літній / зимовий час.
  */
@@ -80,7 +80,7 @@ export function localPartsToUtc(date: string, time: string): LocalToUtcResult {
   return { ok: true, iso: d.toUTC().toISO()! };
 }
 
-/** Прев'ю автоматичної назви (остаточну назву формує n8n за тим самим правилом). */
+/** Прев'ю автоматичної назви (остаточну назву формує сервер за тим самим правилом). */
 export function previewSessionName(date: string, time: string, pipelineName?: string): string | null {
   const r = localPartsToUtc(date, time);
   if (!r.ok) return null;

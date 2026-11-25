@@ -1,5 +1,5 @@
 {
-  "name": "KeyCRM → Data Tables: розподіл кандидатів на групові співбесіди",
+  "name": "KeyCRM → PostgreSQL: розподіл кандидатів на групові співбесіди",
   "nodes": [
     {
       "parameters": {
@@ -154,37 +154,28 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "keycrm_id",
-              "condition": "eq",
-              "keyValue": "={{ $json.cardId }}"
-            }
-          ]
-        },
-        "returnAll": true
+        "operation": "executeQuery",
+        "query": "SELECT id, keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_participants\nWHERE keycrm_id = $1\nORDER BY id",
+        "options": {
+          "queryReplacement": "={{ [$json.cardId] }}"
+        }
       },
       "id": "4fb9a243-e416-56fd-9c94-7b9219b0bfa8",
-      "name": "DT: пошук учасника за KeyCRM ID",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: пошук учасника за KeyCRM ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         -440,
         160
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "alwaysOutputData": true
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
@@ -321,52 +312,29 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Sessions",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "status",
-              "condition": "eq",
-              "keyValue": "Open"
-            },
-            {
-              "keyName": "start_date",
-              "condition": "gt",
-              "keyValue": "={{ $now.toISO() }}"
-            },
-            {
-              "keyName": "pipeline_name",
-              "condition": "eq",
-              "keyValue": "={{ $json.pipeline }}"
-            }
-          ]
-        },
-        "returnAll": true,
-        "orderBy": true,
-        "orderByColumn": "start_date",
-        "orderByDirection": "ASC"
+        "operation": "executeQuery",
+        "query": "SELECT id, session_id, session_name, to_char(start_date AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"start_date\", max_participants, status, pipeline_id, pipeline_name, array_to_string(responsible_ids, ',') AS responsible_ids, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_sessions\nWHERE status = 'Open' AND start_date > now() AND pipeline_name = $1\nORDER BY start_date, id",
+        "options": {
+          "queryReplacement": "={{ [$json.pipeline] }}"
+        }
       },
       "id": "8c5b307d-aebd-568f-a0f3-338fcb96cb94",
-      "name": "DT: відкриті майбутні сесії",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: відкриті майбутні сесії",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         440,
         -200
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
       "alwaysOutputData": true,
-      "notes": "Воронка кандидата, status=Open, start_date у майбутньому; вільні місця рахуються далі",
-      "notesInFlow": true
+      "retryOnFail": true,
+      "notes": "Воронка кандидата, status=Open, start_date у майбутньому; вільні місця рахуються далі"
     },
     {
       "parameters": {
@@ -418,84 +386,59 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Sessions",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "session_id",
-              "condition": "eq",
-              "keyValue": "={{ $json.sessionId }}"
-            }
-          ]
-        },
-        "returnAll": false,
-        "limit": 1
+        "operation": "executeQuery",
+        "query": "SELECT id, session_id, session_name, to_char(start_date AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"start_date\", max_participants, status, pipeline_id, pipeline_name, array_to_string(responsible_ids, ',') AS responsible_ids, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_sessions\nWHERE session_id = $1\nLIMIT 1",
+        "options": {
+          "queryReplacement": "={{ [$json.sessionId] }}"
+        }
       },
       "id": "66eb51b6-f91e-54ad-b43e-d1b51e57c4bf",
-      "name": "DT: повторна перевірка сесії",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: повторна перевірка сесії",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         1100,
         -320
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "alwaysOutputData": true
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "session_id",
-              "condition": "eq",
-              "keyValue": "={{ $('Вибір найближчої сесії').first().json.sessionId }}"
-            },
-            {
-              "keyName": "registration_status",
-              "condition": "neq",
-              "keyValue": "Cancelled"
-            }
-          ]
-        },
-        "returnAll": true
+        "operation": "executeQuery",
+        "query": "SELECT id, keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_participants\nWHERE session_id = $1 AND registration_status <> 'Cancelled'\nORDER BY id",
+        "options": {
+          "queryReplacement": "={{ [$('Вибір найближчої сесії').first().json.sessionId] }}"
+        }
       },
       "id": "628c008b-6427-5b4c-8470-439120ca318f",
-      "name": "DT: активні учасники сесії",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: активні учасники сесії",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         1210,
         -480
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
       "alwaysOutputData": true,
       "executeOnce": true,
-      "notes": "Current Count = активні (не Cancelled) записи сесії",
-      "notesInFlow": true
+      "retryOnFail": true,
+      "notes": "Current Count = активні (не Cancelled) записи сесії"
     },
     {
       "parameters": {
-        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Вибір найближчої сесії').first().json };\nconst s = rows($('DT: повторна перевірка сесії').all())[0] || {};\nconst count = rows($input.all()).length;\nconst max = Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS);\nconst available = Math.max(0, max - count);                                   // Available Seats = MAX(0, Max - Current)\nconst ok = s.status === 'Open' && s.pipeline_name === ctx.pipeline && available > 0 && s.start_date && new Date(s.start_date).getTime() > Date.now();\nctx.seatOk = !!ok;\nif (!ok) {\n  ctx.triedSessionIds = [...ctx.triedSessionIds, ctx.sessionId];\n  ctx.skipAttemptCount = available === 0 && s.status === 'Open';             // сесія без місць — не спроба бронювання\n}\nreturn { json: ctx };\n"
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\nconst cfg = $('Конфіг').first().json;\nconst ctx = { ...$('Вибір найближчої сесії').first().json };\nconst s = rows($('БД: повторна перевірка сесії').all())[0] || {};\nconst count = rows($input.all()).length;\nconst max = Number(s.max_participants) > 0 ? Number(s.max_participants) : Number(cfg.DEFAULT_MAX_PARTICIPANTS);\nconst available = Math.max(0, max - count);                                   // Available Seats = MAX(0, Max - Current)\nconst ok = s.status === 'Open' && s.pipeline_name === ctx.pipeline && available > 0 && s.start_date && new Date(s.start_date).getTime() > Date.now();\nctx.seatOk = !!ok;\nif (!ok) {\n  ctx.triedSessionIds = [...ctx.triedSessionIds, ctx.sessionId];\n  ctx.skipAttemptCount = available === 0 && s.status === 'Open';             // сесія без місць — не спроба бронювання\n}\nreturn { json: ctx };\n"
       },
       "id": "7e763366-e676-53c9-b9f5-875e89dbae01",
       "name": "Місце ще вільне?",
@@ -545,112 +488,27 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "insert",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "keycrm_id": "={{ $json.cardId }}",
-            "name": "={{ $json.name }}",
-            "phone": "={{ $json.phone }}",
-            "session_id": "={{ $json.sessionId }}",
-            "registration_status": "Reserved",
-            "keycrm_sync": "Pending",
-            "sync_error": ""
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "keycrm_id",
-              "displayName": "keycrm_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "name",
-              "displayName": "name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "phone",
-              "displayName": "phone",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "session_id",
-              "displayName": "session_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "registration_status",
-              "displayName": "registration_status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "keycrm_sync",
-              "displayName": "keycrm_sync",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "sync_error",
-              "displayName": "sync_error",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
+        "operation": "executeQuery",
+        "query": "INSERT INTO interview_participants (keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error)\nVALUES ($1, $2, $3, $4, 'Reserved', 'Pending', '')\nRETURNING id, keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"",
+        "options": {
+          "queryReplacement": "={{ [$json.cardId, $json.name, $json.phone, $json.sessionId] }}"
+        }
       },
       "id": "25e58603-7f19-5e35-8b1b-82c0501ec672",
-      "name": "DT: створити учасника (Reserved)",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: створити учасника (Reserved)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         1760,
         -340
       ],
-      "notes": "Без автоповтору: повтор після таймауту міг би створити дубль",
-      "notesInFlow": true
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "notes": "Без автоповтору: повтор після таймауту міг би створити дубль"
     },
     {
       "parameters": {
@@ -684,37 +542,28 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "keycrm_id",
-              "condition": "eq",
-              "keyValue": "={{ $json.cardId }}"
-            }
-          ]
-        },
-        "returnAll": true
+        "operation": "executeQuery",
+        "query": "SELECT id, keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_participants\nWHERE keycrm_id = $1\nORDER BY id",
+        "options": {
+          "queryReplacement": "={{ [$json.cardId] }}"
+        }
       },
       "id": "fe5d4fc1-52cc-573e-8901-729f7eb5278f",
-      "name": "DT: усі записи з цим KeyCRM ID",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: усі записи з цим KeyCRM ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         2420,
         140
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "alwaysOutputData": true
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
@@ -812,36 +661,28 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "deleteRows",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "id",
-              "condition": "eq",
-              "keyValue": "={{ $json.participantId }}"
-            }
-          ]
+        "operation": "executeQuery",
+        "query": "DELETE FROM interview_participants\nWHERE id = $1\nRETURNING id",
+        "options": {
+          "queryReplacement": "={{ [$json.participantId] }}"
         }
       },
       "id": "8c088e33-6697-556e-8a6a-9727f515a7c6",
-      "name": "DT: видалити дубль",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: видалити дубль",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         3080,
         380
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "alwaysOutputData": true
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true
     },
     {
       "parameters": {},
@@ -856,38 +697,28 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Sessions",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "session_id",
-              "condition": "eq",
-              "keyValue": "={{ $json.sessionId }}"
-            }
-          ]
-        },
-        "returnAll": false,
-        "limit": 1
+        "operation": "executeQuery",
+        "query": "SELECT id, session_id, session_name, to_char(start_date AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"start_date\", max_participants, status, pipeline_id, pipeline_name, array_to_string(responsible_ids, ',') AS responsible_ids, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_sessions\nWHERE session_id = $1\nLIMIT 1",
+        "options": {
+          "queryReplacement": "={{ [$json.sessionId] }}"
+        }
       },
       "id": "e249a193-0ae9-53fe-ac29-0ef1dc6d53a9",
-      "name": "DT: сесія (актуальний стан)",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: сесія (актуальний стан)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         3080,
         120
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "alwaysOutputData": true
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
@@ -904,37 +735,28 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "session_id",
-              "condition": "eq",
-              "keyValue": "={{ $json.session.id }}"
-            }
-          ]
-        },
-        "returnAll": true
+        "operation": "executeQuery",
+        "query": "SELECT id, keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_participants\nWHERE session_id = $1\nORDER BY id",
+        "options": {
+          "queryReplacement": "={{ [$json.session.id] }}"
+        }
       },
       "id": "66a0866f-c861-5210-89d4-5140ad3b39c3",
-      "name": "DT: учасники сесії",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: учасники сесії",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         3520,
         120
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "alwaysOutputData": true
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
@@ -988,36 +810,28 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "deleteRows",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "id",
-              "condition": "eq",
-              "keyValue": "={{ $json.participantId }}"
-            }
-          ]
+        "operation": "executeQuery",
+        "query": "DELETE FROM interview_participants\nWHERE id = $1\nRETURNING id",
+        "options": {
+          "queryReplacement": "={{ [$json.participantId] }}"
         }
       },
       "id": "2266e9ef-2ac4-52b2-98ee-9bccd754c12b",
-      "name": "DT: зняти бронювання (місце втрачено)",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: зняти бронювання (місце втрачено)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         4180,
         340
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "alwaysOutputData": true
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "alwaysOutputData": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
@@ -1069,120 +883,29 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "update",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Sessions",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "session_id",
-              "condition": "eq",
-              "keyValue": "={{ $json.session.id }}"
-            }
-          ]
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "status": "Full"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "session_id",
-              "displayName": "session_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "session_name",
-              "displayName": "session_name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "start_date",
-              "displayName": "start_date",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "dateTime",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "max_participants",
-              "displayName": "max_participants",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "number",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "status",
-              "displayName": "status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "pipeline_id",
-              "displayName": "pipeline_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "number",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "pipeline_name",
-              "displayName": "pipeline_name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
+        "operation": "executeQuery",
+        "query": "UPDATE interview_sessions\nSET status = 'Full'\nWHERE session_id = $1\nRETURNING session_id, status",
+        "options": {
+          "queryReplacement": "={{ [$json.session.id] }}"
+        }
       },
       "id": "644e61b5-b693-52b2-b1cf-c16d4971b764",
-      "name": "DT: сесія → Full",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: сесія → Full",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         4400,
         -140
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
       "onError": "continueRegularOutput",
-      "notes": "Необов'язково: якщо не вдалося, бронювання все одно дійсне",
-      "notesInFlow": true
+      "retryOnFail": true,
+      "notes": "Необов'язково: якщо не вдалося, бронювання все одно дійсне"
     },
     {
       "parameters": {
@@ -1242,118 +965,27 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "update",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "id",
-              "condition": "eq",
-              "keyValue": "={{ $('Дані для KeyCRM').first().json.participantId }}"
-            }
-          ]
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "keycrm_sync": "Synced",
-            "sync_error": ""
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "keycrm_id",
-              "displayName": "keycrm_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "name",
-              "displayName": "name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "phone",
-              "displayName": "phone",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "session_id",
-              "displayName": "session_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "registration_status",
-              "displayName": "registration_status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "keycrm_sync",
-              "displayName": "keycrm_sync",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "sync_error",
-              "displayName": "sync_error",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
+        "operation": "executeQuery",
+        "query": "UPDATE interview_participants\nSET keycrm_sync = 'Synced', sync_error = ''\nWHERE id = $1\nRETURNING id, keycrm_sync",
+        "options": {
+          "queryReplacement": "={{ [$('Дані для KeyCRM').first().json.participantId] }}"
+        }
       },
       "id": "c39609ed-63e1-537f-9c58-e932473cf3c3",
-      "name": "DT: позначити Synced",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: позначити Synced",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         4620,
         80
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "retryOnFail": true
     },
     {
       "parameters": {},
@@ -1381,120 +1013,29 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "update",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "id",
-              "condition": "eq",
-              "keyValue": "={{ $json.participantId }}"
-            }
-          ]
-        },
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "keycrm_sync": "Failed",
-            "sync_error": "={{ $json.errorText }}"
-          },
-          "matchingColumns": [],
-          "schema": [
-            {
-              "id": "keycrm_id",
-              "displayName": "keycrm_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "name",
-              "displayName": "name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "phone",
-              "displayName": "phone",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "session_id",
-              "displayName": "session_id",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "registration_status",
-              "displayName": "registration_status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "keycrm_sync",
-              "displayName": "keycrm_sync",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            },
-            {
-              "id": "sync_error",
-              "displayName": "sync_error",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "readOnly": false,
-              "removed": false
-            }
-          ],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": false
-        },
-        "options": {}
+        "operation": "executeQuery",
+        "query": "UPDATE interview_participants\nSET keycrm_sync = 'Failed', sync_error = $2\nWHERE id = $1\nRETURNING id, keycrm_sync",
+        "options": {
+          "queryReplacement": "={{ [$json.participantId, $json.errorText] }}"
+        }
       },
       "id": "e1dc1de9-1633-59dc-ade7-747f2b7c2804",
-      "name": "DT: позначити Failed",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: позначити Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         4840,
         300
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
+      "alwaysOutputData": true,
       "onError": "continueRegularOutput",
-      "alwaysOutputData": true
+      "retryOnFail": true
     },
     {
       "parameters": {
@@ -1630,7 +1171,7 @@
     },
     {
       "parameters": {
-        "content": "## KeyCRM → n8n Data Tables: бронювання групової співбесіди\nТаблиці: **Interview Sessions** і **Interview Participants** (n8n Data Tables, вибір за назвою).\n1. **Webhook** KeyCRM (перехід у «Відібрано» у будь-якій воронці найму 1 етапу — налаштовано на боці KeyCRM) → відповідь 200 одразу.\n2. **Перевірка полів**: `id`, `contact_name`, `contact_phone`, `pipeline` не порожні. Дані — як прийшли, без перетворень.\n3. **Перевірка дублів** у Interview Participants за `keycrm_id`.\n4. Найближча сесія **цієї воронки** (`pipeline_name` = поле `pipeline` з webhook), `status=Open`, у майбутньому → вільні місця = max_participants − активні (не Cancelled) учасники → запис `Reserved / Pending`.\n5. Пауза → прибрати дубль → **черга за id** (перші N з ліміту отримують місце, решта знімає бронь і пробує наступну сесію).\n6. **PUT картки** KeyCRM: лише поле `LD_1027` (статус не змінюється) → `keycrm_sync=Synced`. Помилка → `Failed` + текст у `sync_error`.\n\nНемає сесій → лише сповіщення, таблиці і KeyCRM не змінюються.\n**Повтор оновлення KeyCRM**: виведіть картку зі статусу «Відібрано» і поверніть назад — workflow знайде наявне бронювання і лише оновить картку.",
+        "content": "## KeyCRM → PostgreSQL: бронювання групової співбесіди\nТаблиці: **interview_sessions** і **interview_participants** (PostgreSQL на Railway, credential Postgres у вузлах «БД: …»). Ті самі дані показує адмінпанель.\n1. **Webhook** KeyCRM (перехід у «Відібрано» у будь-якій воронці найму 1 етапу — налаштовано на боці KeyCRM) → відповідь 200 одразу.\n2. **Перевірка полів**: `id`, `contact_name`, `contact_phone`, `pipeline` не порожні. Дані — як прийшли, без перетворень.\n3. **Перевірка дублів** в interview_participants за `keycrm_id`.\n4. Найближча сесія **цієї воронки** (`pipeline_name` = поле `pipeline` з webhook), `status=Open`, у майбутньому → вільні місця = max_participants − активні (не Cancelled) учасники → запис `Reserved / Pending`.\n5. Пауза → прибрати дубль → **черга за id** (перші N з ліміту отримують місце, решта знімає бронь і пробує наступну сесію).\n6. **PUT картки** KeyCRM: лише поле `LD_1027` (статус не змінюється) → `keycrm_sync=Synced`. Помилка → `Failed` + текст у `sync_error`.\n\nНемає сесій → лише сповіщення, база і KeyCRM не змінюються.\n**Повтор оновлення KeyCRM**: виведіть картку зі статусу «Відібрано» і поверніть назад — workflow знайде наявне бронювання і лише оновить картку.\n",
         "height": 420,
         "width": 900,
         "color": 4
@@ -1683,7 +1224,7 @@
       "main": [
         [
           {
-            "node": "DT: пошук учасника за KeyCRM ID",
+            "node": "БД: пошук учасника за KeyCRM ID",
             "type": "main",
             "index": 0
           }
@@ -1697,7 +1238,7 @@
         ]
       ]
     },
-    "DT: пошук учасника за KeyCRM ID": {
+    "БД: пошук учасника за KeyCRM ID": {
       "main": [
         [
           {
@@ -1755,14 +1296,14 @@
       "main": [
         [
           {
-            "node": "DT: відкриті майбутні сесії",
+            "node": "БД: відкриті майбутні сесії",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: відкриті майбутні сесії": {
+    "БД: відкриті майбутні сесії": {
       "main": [
         [
           {
@@ -1788,7 +1329,7 @@
       "main": [
         [
           {
-            "node": "DT: повторна перевірка сесії",
+            "node": "БД: повторна перевірка сесії",
             "type": "main",
             "index": 0
           }
@@ -1802,18 +1343,18 @@
         ]
       ]
     },
-    "DT: повторна перевірка сесії": {
+    "БД: повторна перевірка сесії": {
       "main": [
         [
           {
-            "node": "DT: активні учасники сесії",
+            "node": "БД: активні учасники сесії",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: активні учасники сесії": {
+    "БД: активні учасники сесії": {
       "main": [
         [
           {
@@ -1839,7 +1380,7 @@
       "main": [
         [
           {
-            "node": "DT: створити учасника (Reserved)",
+            "node": "БД: створити учасника (Reserved)",
             "type": "main",
             "index": 0
           }
@@ -1853,7 +1394,7 @@
         ]
       ]
     },
-    "DT: створити учасника (Reserved)": {
+    "БД: створити учасника (Reserved)": {
       "main": [
         [
           {
@@ -1879,14 +1420,14 @@
       "main": [
         [
           {
-            "node": "DT: усі записи з цим KeyCRM ID",
+            "node": "БД: усі записи з цим KeyCRM ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: усі записи з цим KeyCRM ID": {
+    "БД: усі записи з цим KeyCRM ID": {
       "main": [
         [
           {
@@ -1912,14 +1453,14 @@
       "main": [
         [
           {
-            "node": "DT: сесія (актуальний стан)",
+            "node": "БД: сесія (актуальний стан)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "DT: видалити дубль",
+            "node": "БД: видалити дубль",
             "type": "main",
             "index": 0
           }
@@ -1933,7 +1474,7 @@
         ]
       ]
     },
-    "DT: видалити дубль": {
+    "БД: видалити дубль": {
       "main": [
         [
           {
@@ -1944,7 +1485,7 @@
         ]
       ]
     },
-    "DT: сесія (актуальний стан)": {
+    "БД: сесія (актуальний стан)": {
       "main": [
         [
           {
@@ -1959,14 +1500,14 @@
       "main": [
         [
           {
-            "node": "DT: учасники сесії",
+            "node": "БД: учасники сесії",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: учасники сесії": {
+    "БД: учасники сесії": {
       "main": [
         [
           {
@@ -2004,14 +1545,14 @@
         ],
         [
           {
-            "node": "DT: зняти бронювання (місце втрачено)",
+            "node": "БД: зняти бронювання (місце втрачено)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: зняти бронювання (місце втрачено)": {
+    "БД: зняти бронювання (місце втрачено)": {
       "main": [
         [
           {
@@ -2037,7 +1578,7 @@
       "main": [
         [
           {
-            "node": "DT: сесія → Full",
+            "node": "БД: сесія → Full",
             "type": "main",
             "index": 0
           }
@@ -2059,7 +1600,7 @@
       "main": [
         [
           {
-            "node": "DT: позначити Synced",
+            "node": "БД: позначити Synced",
             "type": "main",
             "index": 0
           }
@@ -2073,7 +1614,7 @@
         ]
       ]
     },
-    "DT: позначити Synced": {
+    "БД: позначити Synced": {
       "main": [
         [
           {
@@ -2088,14 +1629,14 @@
       "main": [
         [
           {
-            "node": "DT: позначити Failed",
+            "node": "БД: позначити Failed",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: позначити Failed": {
+    "БД: позначити Failed": {
       "main": [
         [
           {

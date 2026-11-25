@@ -2,12 +2,14 @@
   "name": "interview-admin",
   "version": "1.0.0",
   "private": true,
-  "description": "Адмінпанель для керування груповими співбесідами (n8n Data Tables)",
+  "description": "Адмінпанель для керування груповими співбесідами (PostgreSQL + KeyCRM)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node scripts/db-migrate.mjs",
+    "db:import": "node scripts/import-datatables.mjs"
   },
   "engines": {
     "node": ">=20.9.0"
@@ -18,6 +20,7 @@
     "lucide-react": "1.61.0",
     "luxon": "3.7.2",
     "next": "15.5.28",
+    "pg": "8.23.1",
     "react": "19.2.9",
     "react-dom": "19.2.9",
     "sonner": "2.0.8"
@@ -25,6 +28,7 @@
   "devDependencies": {
     "@types/luxon": "3.7.6",
     "@types/node": "22.20.5",
+    "@types/pg": "8.23.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "autoprefixer": "10.4.21",

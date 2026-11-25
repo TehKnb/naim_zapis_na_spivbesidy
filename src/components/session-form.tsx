@@ -71,7 +71,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
   const mutation = isEdit ? update : create;
   const pending = mutation.isPending;
   const pipelinesQuery = usePipelines();
-  // Воронку сесії можна змінити, лише поки на неї ніхто не записаний (те саме правило перевіряє n8n)
+  // Воронку сесії можна змінити, лише поки на неї ніхто не записаний (те саме правило перевіряє сервер)
   const pipelineLocked = !!session && session.currentCount > 0 && session.pipelineId !== null;
   const pipelineOptions = useMemo(() => {
     const list = (pipelinesQuery.data || []).map((p) => ({ ...p, missing: false }));
@@ -203,7 +203,7 @@ function SessionFormDialog({ state, onClose }: { state: FormState; onClose: () =
                 setErrors((x) => ({ ...x, responsibleIds: undefined }));
               }} />
           ) : !responsiblesQuery.isError ? (
-            <p className="text-sm text-ink-soft">Список співробітників порожній. Додайте їх у таблицю Interview Responsibles у n8n.</p>
+            <p className="text-sm text-ink-soft">Список співробітників порожній. Додайте їх у таблицю interview_responsibles у базі даних.</p>
           ) : null}
           {err('responsibleIds')}
           {responsiblesQuery.isError && (

@@ -1,11 +1,37 @@
 import { NextResponse } from 'next/server';
-import { ApiFailure } from './n8n';
+import { ApiFailure } from './api-failure';
+import { isAuthenticated } from './auth-server';
+import { asDbFailure } from './db';
 import { localPartsToUtc } from './time';
 
 export function errorResponse(e: unknown) {
-  if (e instanceof ApiFailure) return NextResponse.json(e.toBody(), { status: e.status });
-  console.error('[api] unexpected error', e);
+  const err = asDbFailure(e);
+  if (err instanceof ApiFailure) {
+    if (err.status >= 500) console.error('[api]', err.code, err.message);
+    return NextResponse.json(err.toBody(), { status: err.status, headers: { 'Cache-Control': 'no-store' } });
+  }
+  console.error('[api] unexpected error', err);
   return NextResponse.json({ error: { code: 'INTERNAL', message: 'Внутрішня помилка сервера.' } }, { status: 500 });
+}
+
+/**
+ * Обгортка route handler: спершу перевірка сесії (другий рубіж після middleware — без входу база й KeyCRM не чіпаються),
+ * потім обробник; будь-яка помилка → JSON { error }.
+ */
+export async function guarded(fn: () => Promise<Response>): Promise<Response> {
+  try {
+    if (!(await isAuthenticated())) throw new ApiFailure(401, 'AUTH_REQUIRED', 'Сесія завершилась. Увійдіть ще раз.');
+    return await fn();
+  } catch (e) {
+    return errorResponse(e);
+  }
+}
+
+const SESSION_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+/** ID співбесіди з адреси: некоректний → 404 (без звернення до бази). */
+export function sessionIdParam(id: string): string {
+  if (!SESSION_ID_RE.test(id)) throw new ApiFailure(404, 'SESSION_NOT_FOUND', 'Співбесіду не знайдено');
+  return id;
 }
 
 export async function readJson(req: Request): Promise<Record<string, unknown>> {
@@ -31,11 +57,11 @@ export function parseSessionInput(body: Record<string, unknown>, { requireFuture
   if (conv.ok && requireFuture && new Date(conv.iso).getTime() <= Date.now()) fields.date = 'Не можна створити співбесіду в минулому';
   if (!Number.isInteger(max) || max <= 0) fields.maxParticipants = 'Має бути додатне ціле число';
   else if (max > 1000) fields.maxParticipants = 'Занадто велике значення';
-  // Наявність воронки в довіднику перевіряє n8n
+  // Наявність воронки в довіднику перевіряє sessions-service
   if (body.pipelineId === null || body.pipelineId === undefined || body.pipelineId === '' || !Number.isInteger(pipelineId) || pipelineId <= 0) {
     fields.pipelineId = 'Оберіть воронку';
   }
-  // Відповідальні: масив ID співробітників (необов'язково). Наявність у довіднику перевіряє n8n
+  // Відповідальні: масив ID співробітників (необов'язково). Наявність у довіднику перевіряє sessions-service
   let responsibleIds: number[] | undefined;
   if (body.responsibleIds !== undefined && body.responsibleIds !== null) {
     const raw = body.responsibleIds;

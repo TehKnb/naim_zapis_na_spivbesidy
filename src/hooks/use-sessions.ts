@@ -17,12 +17,12 @@ export function useSessions() {
   return useQuery({ queryKey: keys.sessions, queryFn: async () => (await api.list()).sessions });
 }
 
-/** Довідник воронок (форма, фільтри). Змінюється рідко — у n8n, вузол «Конфіг». */
+/** Довідник воронок (форма, фільтри). Змінюється рідко — таблиця interview_pipelines у базі. */
 export function usePipelines() {
   return useQuery({ queryKey: keys.pipelines, queryFn: async () => (await api.pipelines()).pipelines, staleTime: 5 * 60_000 });
 }
 
-/** Співробітники, яких можна призначити відповідальними (n8n таблиця Interview Responsibles). */
+/** Співробітники, яких можна призначити відповідальними (таблиця interview_responsibles). */
 export function useResponsibles() {
   return useQuery({ queryKey: keys.responsibles, queryFn: async () => (await api.responsibles()).responsibles, staleTime: 5 * 60_000 });
 }

@@ -1,31 +1,26 @@
 import { NextResponse } from 'next/server';
-import { ApiFailure, callSessionApi } from '@/lib/n8n';
-import { errorResponse, readJson } from '@/lib/server-route';
-import type { AddParticipantResult, Participant } from '@/lib/types';
+import { ApiFailure } from '@/lib/api-failure';
+import { guarded, readJson, sessionIdParam } from '@/lib/server-route';
+import { addParticipant, getSession } from '@/lib/sessions-service';
 
 export const dynamic = 'force-dynamic';
+type Ctx = { params: Promise<{ id: string }> };
 
 /** Кандидати, зареєстровані на співбесіду (лише читання). */
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
-    const { body } = await callSessionApi<{ sessionId: string; participants: Participant[] }>('participants', { sessionId: id });
-    return NextResponse.json(body);
-  } catch (e) {
-    return errorResponse(e);
-  }
+export function GET(_req: Request, { params }: Ctx) {
+  return guarded(async () => {
+    const { session, participants } = await getSession(sessionIdParam((await params).id));
+    return NextResponse.json({ sessionId: session.id, participants });
+  });
 }
 
 /** Ручний запис кандидата (лід KeyCRM у статусі «Запросили на 1 тур»): { cardId }. Перезаписує поле співбесіди в KeyCRM. */
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params;
+export function POST(req: Request, { params }: Ctx) {
+  return guarded(async () => {
+    const id = sessionIdParam((await params).id);
     const body = await readJson(req);
     const cardId = typeof body.cardId === 'string' || typeof body.cardId === 'number' ? String(body.cardId).trim() : '';
     if (!/^\d{1,12}$/.test(cardId)) throw new ApiFailure(400, 'INVALID_CARD', 'Оберіть кандидата зі списку.');
-    const { body: result } = await callSessionApi<AddParticipantResult>('addParticipant', { sessionId: id, cardId });
-    return NextResponse.json(result, { status: 201 });
-  } catch (e) {
-    return errorResponse(e);
-  }
+    return NextResponse.json(await addParticipant(id, cardId), { status: 201 });
+  });
 }

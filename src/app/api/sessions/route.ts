@@ -1,27 +1,18 @@
 import { NextResponse } from 'next/server';
-import { callSessionApi } from '@/lib/n8n';
-import { errorResponse, parseSessionInput, readJson } from '@/lib/server-route';
-import type { Session } from '@/lib/types';
+import { guarded, parseSessionInput, readJson } from '@/lib/server-route';
+import { createSession, listSessions } from '@/lib/sessions-service';
 
 export const dynamic = 'force-dynamic';
 
 /** Список усіх співбесід. */
-export async function GET() {
-  try {
-    const { body } = await callSessionApi<{ sessions: Session[] }>('list');
-    return NextResponse.json({ sessions: body.sessions ?? [] });
-  } catch (e) {
-    return errorResponse(e);
-  }
+export function GET() {
+  return guarded(async () => NextResponse.json(await listSessions()));
 }
 
-/** Створення співбесіди: { date: 'YYYY-MM-DD', time: 'HH:mm' (Europe/Kyiv), maxParticipants, pipelineId }. */
-export async function POST(req: Request) {
-  try {
+/** Створення співбесіди: { date: 'YYYY-MM-DD', time: 'HH:mm' (Europe/Kyiv), maxParticipants, pipelineId, responsibleIds? }. */
+export function POST(req: Request) {
+  return guarded(async () => {
     const input = parseSessionInput(await readJson(req), { requireFuture: true });
-    const { body } = await callSessionApi<{ session: Session }>('create', input);
-    return NextResponse.json(body, { status: 201 });
-  } catch (e) {
-    return errorResponse(e);
-  }
+    return NextResponse.json({ session: await createSession(input) }, { status: 201 });
+  });
 }

@@ -12,8 +12,9 @@ export class ClientApiError extends Error {
   ) {
     super(message);
   }
-  get isN8nDown() {
-    return ['N8N_UNAVAILABLE', 'N8N_TIMEOUT', 'NETWORK'].includes(this.code);
+  /** Сервер або база тимчасово недоступні (варто спробувати пізніше). */
+  get isUnavailable() {
+    return ['DB_UNAVAILABLE', 'NETWORK'].includes(this.code);
   }
 }
 

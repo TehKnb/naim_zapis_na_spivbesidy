@@ -80,100 +80,79 @@
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Sessions",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": []
-        },
-        "returnAll": true
+        "operation": "executeQuery",
+        "query": "SELECT id, session_id, session_name, to_char(start_date AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"start_date\", max_participants, status, pipeline_id, pipeline_name, array_to_string(responsible_ids, ',') AS responsible_ids, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_sessions\nORDER BY start_date, id",
+        "options": {}
       },
       "id": "18df706b-c952-5010-b11d-8e990c97f63c",
-      "name": "DT: усі сесії",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: усі сесії",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         440,
         100
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
       "alwaysOutputData": true,
-      "executeOnce": true
+      "executeOnce": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Participants",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "registration_status",
-              "condition": "neq",
-              "keyValue": "Cancelled"
-            }
-          ]
-        },
-        "returnAll": true
+        "operation": "executeQuery",
+        "query": "SELECT id, keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error, to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"createdAt\", to_char(updated_at AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.MS\"Z\"') AS \"updatedAt\"\nFROM interview_participants\nWHERE registration_status <> 'Cancelled'",
+        "options": {}
       },
       "id": "e7a405cd-6897-5e0c-abc9-d8749d619d7b",
-      "name": "DT: активні реєстрації",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: активні реєстрації",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         660,
         100
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
       "alwaysOutputData": true,
-      "executeOnce": true
+      "executeOnce": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "value": "Interview Responsibles",
-          "mode": "name"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": []
-        },
-        "returnAll": true
+        "operation": "executeQuery",
+        "query": "SELECT employee_id AS id, employee_id, name, discord_id\nFROM interview_responsibles\nORDER BY name",
+        "options": {}
       },
       "id": "f815b9be-6faf-5b61-9087-8587755977ac",
-      "name": "DT: відповідальні",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
+      "name": "БД: відповідальні",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
       "position": [
         880,
         100
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "credentials": {
+        "postgres": {
+          "id": "REPLACE_POSTGRES_CRED",
+          "name": "Postgres (Interview DB)"
+        }
+      },
       "alwaysOutputData": true,
-      "executeOnce": true
+      "executeOnce": true,
+      "retryOnFail": true
     },
     {
       "parameters": {
-        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\n\nconst cfg = $('Конфіг').first().json;\nconst tz = cfg.TIMEZONE || 'Europe/Kyiv';\nconst today = DateTime.now().setZone(tz);\nconst toKyiv = (v) => DateTime.fromJSDate(new Date(v)).setZone(tz);\n\n// Активні реєстрації (без Cancelled) за сесіями\nconst counts = {};\nfor (const p of rows($('DT: активні реєстрації').all())) counts[p.session_id] = (counts[p.session_id] || 0) + 1;\n\n// Відповідальні: employee_id → { name, discord_id }\nconst people = new Map(rows($('DT: відповідальні').all()).map((r) => [Number(r.employee_id), r]));\nconst parseIds = (v) => [...new Set(String(v === null || v === undefined ? '' : v).split(/[^0-9]+/).filter(Boolean).map(Number))];\n// Тег у Discord: <@ID>. Без discord_id — лише ім'я жирним.\nconst mention = (id) => {\n  const r = people.get(id);\n  if (!r) return `співробітник #${id}`;\n  const did = r.discord_id === null || r.discord_id === undefined ? '' : String(r.discord_id).trim();\n  return /^\\d+$/.test(did) ? `<@${did}>` : `**${String(r.name || '').trim() || '#' + id}**`;\n};\n\nconst sessions = rows($('DT: усі сесії').all())\n  .filter((s) => s.start_date)\n  .map((s) => ({ s, start: toKyiv(s.start_date) }))\n  .filter(({ start }) => start.isValid && start.hasSame(today, 'day'))\n  .filter(({ s }) => cfg.INCLUDE_CLOSED !== false || s.status !== 'Closed')\n  .sort((a, b) => a.start.toMillis() - b.start.toMillis());\n\nconst dateTitle = today.setLocale('uk').toFormat('cccc, d MMMM');\nif (!sessions.length) {\n  if (cfg.SEND_WHEN_EMPTY !== true) return []; // нічого не надсилаємо\n  return [{ json: { content: `📅 **Співбесіди на сьогодні (${dateTitle})**\\nСьогодні співбесід немає.` } }];\n}\n\nconst base = String(cfg.ADMIN_PANEL_URL || '').trim().replace(/\\/+$/, '');\nconst blocks = sessions.map(({ s, start }) => {\n  const max = Number(s.max_participants) || 0;\n  const count = counts[s.session_id] || 0;\n  const ids = parseIds(s.responsible_ids);\n  const lines = [\n    `🕒 **${start.toFormat('HH:mm')}** · ${s.pipeline_name || s.session_name || 'Співбесіда'}${s.status === 'Closed' ? ' · 🔒 закрита' : ''}`,\n    `👥 Записано: ${count}${max ? ' з ' + max : ''}`,\n    `👤 Відповідальні: ${ids.length ? ids.map(mention).join(', ') : '⚠️ не призначено'}`,\n  ];\n  if (base) lines.push(`🔗 <${base}/sessions/${encodeURIComponent(s.session_id)}>`);\n  return lines.join('\\n');\n});\n\n// Discord: до 2000 символів на повідомлення — ділимо за сесіями\nconst header = `📅 **Співбесіди на сьогодні (${dateTitle})** — ${sessions.length}`;\nconst LIMIT = 1900;\nconst messages = [];\nlet cur = header;\nfor (const b of blocks) {\n  if ((cur + '\\n\\n' + b).length > LIMIT) { messages.push(cur); cur = '📅 **Співбесіди на сьогодні (продовження)**'; }\n  cur += '\\n\\n' + b;\n}\nmessages.push(cur);\nreturn messages.map((content) => ({ json: { content } }));\n"
+        "jsCode": "// Рядки Data Table: { id (автоінкремент), createdAt, updatedAt, ...колонки }. Порожній результат = [{}].\nconst rows = (items) => items.map((i) => i.json).filter((j) => j && j.id !== undefined && j.id !== null);\n\nconst cfg = $('Конфіг').first().json;\nconst tz = cfg.TIMEZONE || 'Europe/Kyiv';\nconst today = DateTime.now().setZone(tz);\nconst toKyiv = (v) => DateTime.fromJSDate(new Date(v)).setZone(tz);\n\n// Активні реєстрації (без Cancelled) за сесіями\nconst counts = {};\nfor (const p of rows($('БД: активні реєстрації').all())) counts[p.session_id] = (counts[p.session_id] || 0) + 1;\n\n// Відповідальні: employee_id → { name, discord_id }\nconst people = new Map(rows($('БД: відповідальні').all()).map((r) => [Number(r.employee_id), r]));\nconst parseIds = (v) => [...new Set(String(v === null || v === undefined ? '' : v).split(/[^0-9]+/).filter(Boolean).map(Number))];\n// Тег у Discord: <@ID>. Без discord_id — лише ім'я жирним.\nconst mention = (id) => {\n  const r = people.get(id);\n  if (!r) return `співробітник #${id}`;\n  const did = r.discord_id === null || r.discord_id === undefined ? '' : String(r.discord_id).trim();\n  return /^\\d+$/.test(did) ? `<@${did}>` : `**${String(r.name || '').trim() || '#' + id}**`;\n};\n\nconst sessions = rows($('БД: усі сесії').all())\n  .filter((s) => s.start_date)\n  .map((s) => ({ s, start: toKyiv(s.start_date) }))\n  .filter(({ start }) => start.isValid && start.hasSame(today, 'day'))\n  .filter(({ s }) => cfg.INCLUDE_CLOSED !== false || s.status !== 'Closed')\n  .sort((a, b) => a.start.toMillis() - b.start.toMillis());\n\nconst dateTitle = today.setLocale('uk').toFormat('cccc, d MMMM');\nif (!sessions.length) {\n  if (cfg.SEND_WHEN_EMPTY !== true) return []; // нічого не надсилаємо\n  return [{ json: { content: `📅 **Співбесіди на сьогодні (${dateTitle})**\\nСьогодні співбесід немає.` } }];\n}\n\nconst base = String(cfg.ADMIN_PANEL_URL || '').trim().replace(/\\/+$/, '');\nconst blocks = sessions.map(({ s, start }) => {\n  const max = Number(s.max_participants) || 0;\n  const count = counts[s.session_id] || 0;\n  const ids = parseIds(s.responsible_ids);\n  const lines = [\n    `🕒 **${start.toFormat('HH:mm')}** · ${s.pipeline_name || s.session_name || 'Співбесіда'}${s.status === 'Closed' ? ' · 🔒 закрита' : ''}`,\n    `👥 Записано: ${count}${max ? ' з ' + max : ''}`,\n    `👤 Відповідальні: ${ids.length ? ids.map(mention).join(', ') : '⚠️ не призначено'}`,\n  ];\n  if (base) lines.push(`🔗 <${base}/sessions/${encodeURIComponent(s.session_id)}>`);\n  return lines.join('\\n');\n});\n\n// Discord: до 2000 символів на повідомлення — ділимо за сесіями\nconst header = `📅 **Співбесіди на сьогодні (${dateTitle})** — ${sessions.length}`;\nconst LIMIT = 1900;\nconst messages = [];\nlet cur = header;\nfor (const b of blocks) {\n  if ((cur + '\\n\\n' + b).length > LIMIT) { messages.push(cur); cur = '📅 **Співбесіди на сьогодні (продовження)**'; }\n  cur += '\\n\\n' + b;\n}\nmessages.push(cur);\nreturn messages.map((content) => ({ json: { content } }));\n"
       },
       "id": "87a7b38e-6e8c-5038-8e0f-40a373987afe",
       "name": "Повідомлення на сьогодні",
@@ -219,7 +198,7 @@
     },
     {
       "parameters": {
-        "content": "## Щоденне нагадування в Discord про сьогоднішні співбесіди\nЩодня о **9:00 за Києвом** бере з **Interview Sessions** сесії, що починаються сьогодні, і надсилає в канал Discord: час, воронку, скільки записано і відповідальних із тегом `<@discord_id>`.\n\n**Налаштування:**\n1. У вузлі **Discord: надіслати повідомлення** замініть URL на адресу webhook каналу (Discord → налаштування каналу → Інтеграції → Webhooks → Copy Webhook URL).\n2. За потреби змініть «Конфіг»: `SEND_WHEN_EMPTY` (писати «співбесід немає»), `INCLUDE_CLOSED` (показувати закриті), `ADMIN_PANEL_URL` (адреса адмінпанелі для посилань, напр. `https://….up.railway.app`).\n3. Перевірте кнопкою **Execute workflow** (тригер «Запустити вручну»), потім активуйте workflow.\n\nВідповідальні — таблиця **Interview Responsibles**. Співробітник без `discord_id` показується лише ім'ям, без тегу. Якщо повідомлення довше за 2000 символів, воно ділиться на кілька.",
+        "content": "## Щоденне нагадування в Discord про сьогоднішні співбесіди\nЩодня о **9:00 за Києвом** бере з **interview_sessions** сесії, що починаються сьогодні, і надсилає в канал Discord: час, воронку, скільки записано і відповідальних із тегом `<@discord_id>`.\n\n**Налаштування:**\n1. У вузлі **Discord: надіслати повідомлення** замініть URL на адресу webhook каналу (Discord → налаштування каналу → Інтеграції → Webhooks → Copy Webhook URL).\n2. За потреби змініть «Конфіг»: `SEND_WHEN_EMPTY` (писати «співбесід немає»), `INCLUDE_CLOSED` (показувати закриті), `ADMIN_PANEL_URL` (адреса адмінпанелі для посилань, напр. `https://….up.railway.app`).\n3. Перевірте кнопкою **Execute workflow** (тригер «Запустити вручну»), потім активуйте workflow.\n\nВідповідальні — таблиця **interview_responsibles**. Співробітник без `discord_id` показується лише ім'ям, без тегу. Якщо повідомлення довше за 2000 символів, воно ділиться на кілька.",
         "height": 380,
         "width": 1000,
         "color": 4
@@ -261,36 +240,36 @@
       "main": [
         [
           {
-            "node": "DT: усі сесії",
+            "node": "БД: усі сесії",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: усі сесії": {
+    "БД: усі сесії": {
       "main": [
         [
           {
-            "node": "DT: активні реєстрації",
+            "node": "БД: активні реєстрації",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: активні реєстрації": {
+    "БД: активні реєстрації": {
       "main": [
         [
           {
-            "node": "DT: відповідальні",
+            "node": "БД: відповідальні",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "DT: відповідальні": {
+    "БД: відповідальні": {
       "main": [
         [
           {

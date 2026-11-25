@@ -1,6 +1,6 @@
 export type SessionStatus = 'Open' | 'Full' | 'Closed';
 
-/** Співбесіда, як її повертає API (n8n workflow «Адмінпанель: API керування співбесідами»). */
+/** Співбесіда, як її повертає API (маршрути /api/sessions, дані — PostgreSQL). */
 export interface Session {
   id: string;
   name: string;
@@ -15,7 +15,7 @@ export interface Session {
   /** Воронка KeyCRM, для якої ця співбесіда. null — ще не прив'язано (стара сесія). */
   pipelineId: number | null;
   pipelineName: string;
-  /** ID відповідальних співробітників (таблиця Interview Responsibles у n8n). */
+  /** ID відповідальних співробітників (таблиця interview_responsibles). */
   responsibleIds?: number[];
   /** Ті самі відповідальні з іменами. missing — співробітника вже немає в довіднику. */
   responsibles?: SessionResponsible[];
@@ -41,13 +41,13 @@ export interface SessionDetails {
   participants: Participant[];
 }
 
-/** Воронка з довідника (n8n «Конфіг» → PIPELINES). */
+/** Воронка з довідника (таблиця interview_pipelines). */
 export interface Pipeline {
   id: number;
   name: string;
 }
 
-/** Співробітник, якого можна призначити відповідальним (n8n таблиця Interview Responsibles). */
+/** Співробітник, якого можна призначити відповідальним (таблиця interview_responsibles). */
 export interface Responsible {
   id: number;
   name: string;
