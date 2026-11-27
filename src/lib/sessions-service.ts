@@ -289,6 +289,7 @@ export async function listCandidates(sessionId: string): Promise<{ candidates: C
         retryHere: regs.some((r) => r.session_id === sessionId && r.keycrm_sync === 'Failed'),
         currentSessions: regs
           .filter((r) => r.session_id !== sessionId)
+          .filter((r) => { const s = byId.get(r.session_id); return !s || new Date(s.start_date).getTime() > Date.now(); })
           .map((r) => {
             const s = byId.get(r.session_id);
             return { sessionId: r.session_id, name: s?.session_name ?? '', startDate: s ? iso(s.start_date) : null };
@@ -328,7 +329,15 @@ export async function addParticipant(sessionId: string, cardId: string): Promise
   const booked = await transaction(async (tx) => {
     const s = await lockSession(tx, sessionId);
     if (new Date(s.start_date).getTime() <= Date.now()) throw pastError();
-    const records = (await tx.query<ParticipantRow>(`SELECT * FROM interview_participants WHERE keycrm_id = $1 AND ${ACTIVE} FOR UPDATE`, [cardId])).rows;
+    // Активні записи кандидата на майбутні співбесіди (і на цю); записи на минулі — історія, їх не чіпаємо
+    const records = (
+      await tx.query<ParticipantRow>(
+        `SELECT p.* FROM interview_participants p JOIN interview_sessions s USING (session_id)
+          WHERE p.keycrm_id = $1 AND p.registration_status <> 'Cancelled' AND (s.start_date > now() OR p.session_id = $2)
+          FOR UPDATE OF p`,
+        [cardId, sessionId],
+      )
+    ).rows;
     const here = records.filter((r) => r.session_id === sessionId);
     if (here.some((r) => r.keycrm_sync !== 'Failed')) throw new ApiFailure(409, 'ALREADY_IN_SESSION', 'Кандидат уже записаний на цю співбесіду');
     // Повтор: попередній запис сюди не оновив KeyCRM (Failed) — його буде скасовано і створено новий

@@ -60,7 +60,8 @@ export async function handleAgentResponse(input: AgentInput): Promise<{ result: 
         [cardId],
       )
     ).rows;
-    const active = rows.filter((r) => r.registration_status !== 'Cancelled');
+    // Броні на сеанси, що вже почались, — завершені: агент стосується лише майбутньої співбесіди
+    const active = rows.filter((r) => r.registration_status !== 'Cancelled' && new Date(r.start_date).getTime() > Date.now());
     const last = rows[rows.length - 1];
 
     if (confirmed) {
