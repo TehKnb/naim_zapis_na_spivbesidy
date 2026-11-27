@@ -17,10 +17,19 @@ import { formatFull, formatTime, formatWeekday, formatDate } from '@/lib/time';
 import type { Participant, Session } from '@/lib/types';
 
 const REG: Record<string, { label: string; tone: 'blue' | 'green' | 'gray' }> = {
-  Reserved: { label: 'Reserved', tone: 'blue' },
-  Confirmed: { label: 'Confirmed', tone: 'green' },
-  Cancelled: { label: 'Cancelled', tone: 'gray' },
+  Reserved: { label: 'Бронь · чекає підтвердження', tone: 'blue' },
+  Confirmed: { label: 'Підтверджено', tone: 'green' },
+  Cancelled: { label: 'Скасовано', tone: 'gray' },
 };
+const CANCEL_REASON: Record<string, string> = {
+  agent_declined: 'відмова агенту',
+  rebooked_manually: 'перезаписано вручну',
+};
+function regView(p: Participant) {
+  const r = REG[p.registrationStatus] ?? { label: p.registrationStatus || '—', tone: 'gray' as const };
+  const why = p.registrationStatus === 'Cancelled' && p.cancelReason ? CANCEL_REASON[p.cancelReason] : '';
+  return why ? { ...r, label: `${r.label} · ${why}` } : r;
+}
 const SYNC: Record<string, { label: string; tone: 'green' | 'orange' | 'red' }> = {
   Synced: { label: 'Synced', tone: 'green' },
   Pending: { label: 'Pending', tone: 'orange' },
@@ -109,13 +118,13 @@ function ParticipantsTable({ participants }: { participants: Participant[] }) {
               <th className="px-4 py-2.5 font-medium">Ім&apos;я</th>
               <th className="px-4 py-2.5 font-medium">Телефон</th>
               <th className="px-4 py-2.5 font-medium">KeyCRM ID</th>
-              <th className="px-4 py-2.5 font-medium">Статус реєстрації</th>
+              <th className="px-4 py-2.5 font-medium">Статус</th>
               <th className="px-4 py-2.5 font-medium">Синхронізація KeyCRM</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {participants.map((p) => {
-              const r = REG[p.registrationStatus] ?? { label: p.registrationStatus || '—', tone: 'gray' as const };
+              const r = regView(p);
               const s = SYNC[p.keycrmSync] ?? { label: p.keycrmSync || '—', tone: 'orange' as const };
               return (
                 <tr key={p.id} className={p.registrationStatus === 'Cancelled' ? 'text-ink-muted' : 'text-ink'}>
@@ -132,7 +141,7 @@ function ParticipantsTable({ participants }: { participants: Participant[] }) {
       </div>
       <ul className="divide-y divide-line md:hidden">
         {participants.map((p) => {
-          const r = REG[p.registrationStatus] ?? { label: p.registrationStatus || '—', tone: 'gray' as const };
+          const r = regView(p);
           const s = SYNC[p.keycrmSync] ?? { label: p.keycrmSync || '—', tone: 'orange' as const };
           return (
             <li key={p.id} className="px-4 py-3">
@@ -202,11 +211,12 @@ export default function SessionDetailsPage({ params }: { params: Promise<{ id: s
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
               <Metric icon={CalendarDays} label="Дата" tone="bg-primary-50" value={<span className="text-base">{formatWeekday(data.session.startDate)}, {formatDate(data.session.startDate)}</span>} />
               <Metric icon={Clock} label="Час" tone="bg-primary-50" value={formatTime(data.session.startDate)} />
               <Metric label="Максимум учасників" tone="bg-violet-50" value={data.session.maxParticipants} />
-              <Metric label="Зареєстровано" tone="bg-success-50" value={data.session.currentCount} />
+              <Metric label="Підтверджено" tone="bg-success-50" value={data.session.confirmedCount ?? data.session.currentCount} />
+              <Metric label="Бронь (чекає підтвердження)" tone="bg-primary-50" value={data.session.reservedCount ?? 0} />
               <Metric label="Вільні місця" tone="bg-warning-50" value={data.session.availableSeats} />
             </div>
             <div className="mt-5">

@@ -66,7 +66,7 @@ function EventChip({ s, onOpen, full }: { s: Session; onOpen: (s: Session) => vo
     <button
       type="button"
       onClick={() => onOpen(s)}
-      title={`${s.pipelineName || 'Воронку не вказано'} · ${formatTime(s.startDate)} · ${s.currentCount}/${s.maxParticipants} · ${m.label}`}
+      title={`${s.pipelineName || 'Воронку не вказано'} · ${formatTime(s.startDate)} · ${s.currentCount}/${s.maxParticipants}${s.reservedCount ? ` (бронь: ${s.reservedCount})` : ''} · ${m.label}`}
       style={chipStyle(s)}
       className={cx(
         'flex w-full items-center gap-1.5 rounded-md border-l-[3px] px-1.5 text-left text-xs font-semibold text-ink transition-[filter] hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',

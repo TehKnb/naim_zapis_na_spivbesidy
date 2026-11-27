@@ -35,6 +35,8 @@ interface ParticipantRow {
   registration_status: string;
   keycrm_sync: string;
   sync_error: string;
+  confirmed_at: Date | null;
+  cancel_reason: string;
   created_at: Date;
 }
 
@@ -75,7 +77,8 @@ export async function listResponsibles(): Promise<Responsible[]> {
 
 // ---------- Форма відповіді ----------
 
-function shapeSession(s: SessionRow, count: number, dir: Map<number, ResponsibleRow>): Session {
+/** count — активні записи (бронь + підтверджені); confirmed — з них підтверджені. */
+function shapeSession(s: SessionRow, count: number, dir: Map<number, ResponsibleRow>, confirmed = 0): Session {
   const max = s.max_participants;
   const ids = [...new Set(s.responsible_ids ?? [])];
   const start = iso(s.start_date)!;
@@ -90,6 +93,8 @@ function shapeSession(s: SessionRow, count: number, dir: Map<number, Responsible
     responsibles: ids.map((id) => responsibleView(id, dir)),
     maxParticipants: max,
     currentCount: count,
+    confirmedCount: confirmed,
+    reservedCount: Math.max(0, count - confirmed),
     availableSeats: Math.max(0, max - count),
     isPast: new Date(start).getTime() <= Date.now(),
     createdAt: iso(s.created_at),
@@ -105,6 +110,8 @@ function shapeParticipant(p: ParticipantRow): Participant {
     keycrmId: p.keycrm_id || '',
     registrationStatus: p.registration_status || '',
     keycrmSync: p.keycrm_sync || '',
+    cancelReason: p.cancel_reason || '',
+    confirmedAt: iso(p.confirmed_at),
     createdAt: iso(p.created_at),
   };
 }
@@ -132,6 +139,10 @@ async function lockSession(tx: Tx, sessionId: string): Promise<SessionRow> {
   return s;
 }
 
+async function confirmedCount(db: Pick<Tx, 'query'>, sessionId: string): Promise<number> {
+  return (await db.query<{ n: number }>("SELECT count(*)::int AS n FROM interview_participants WHERE session_id = $1 AND registration_status = 'Confirmed'", [sessionId])).rows[0].n;
+}
+
 async function activeCount(db: Tx, sessionId: string): Promise<number> {
   return (await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM interview_participants WHERE session_id = $1 AND ${ACTIVE}`, [sessionId])).rows[0].n;
 }
@@ -140,15 +151,16 @@ async function activeCount(db: Tx, sessionId: string): Promise<number> {
 
 export async function listSessions(): Promise<{ sessions: Session[]; serverTime: string }> {
   const [rows, dir] = await Promise.all([
-    query<SessionRow & { active_count: number }>(
-      `SELECT s.*, COALESCE(c.n, 0)::int AS active_count
+    query<SessionRow & { active_count: number; confirmed_count: number }>(
+      `SELECT s.*, COALESCE(c.n, 0)::int AS active_count, COALESCE(c.confirmed, 0)::int AS confirmed_count
          FROM interview_sessions s
-         LEFT JOIN (SELECT session_id, count(*) AS n FROM interview_participants WHERE ${ACTIVE} GROUP BY session_id) c USING (session_id)
+         LEFT JOIN (SELECT session_id, count(*) AS n, count(*) FILTER (WHERE registration_status = 'Confirmed') AS confirmed
+                      FROM interview_participants WHERE ${ACTIVE} GROUP BY session_id) c USING (session_id)
         ORDER BY s.start_date, s.id`,
     ),
     loadResponsibles(),
   ]);
-  return { sessions: rows.map((s) => shapeSession(s, s.active_count, dir)), serverTime: new Date().toISOString() };
+  return { sessions: rows.map((s) => shapeSession(s, s.active_count, dir, s.confirmed_count)), serverTime: new Date().toISOString() };
 }
 
 export async function getSession(sessionId: string): Promise<{ session: Session; participants: Participant[] }> {
@@ -158,7 +170,7 @@ export async function getSession(sessionId: string): Promise<{ session: Session;
     query<ParticipantRow>('SELECT * FROM interview_participants WHERE session_id = $1 ORDER BY id', [sessionId]),
     loadResponsibles(),
   ]);
-  return { session: shapeSession(s, parts.filter((p) => p.registration_status !== 'Cancelled').length, dir), participants: parts.map(shapeParticipant) };
+  return { session: shapeSession(s, parts.filter((p) => p.registration_status !== 'Cancelled').length, dir, parts.filter((p) => p.registration_status === 'Confirmed').length), participants: parts.map(shapeParticipant) };
 }
 
 export interface SessionWrite {
@@ -221,7 +233,7 @@ export async function updateSession(sessionId: string, input: SessionWrite): Pro
         [sessionId, sessionName(startIso, pipelineName), startIso, max, status, pid, pipelineName, responsibleIds],
       )
     ).rows[0];
-    return shapeSession(row, count, dir);
+    return shapeSession(row, count, dir, await confirmedCount(tx, sessionId));
   });
 }
 
@@ -231,7 +243,7 @@ export async function closeSession(sessionId: string): Promise<Session> {
     await lockSession(tx, sessionId);
     const count = await activeCount(tx, sessionId);
     const row = (await tx.query<SessionRow>("UPDATE interview_sessions SET status = 'Closed' WHERE session_id = $1 RETURNING *", [sessionId])).rows[0];
-    return shapeSession(row, count, await loadResponsibles(tx));
+    return shapeSession(row, count, await loadResponsibles(tx), await confirmedCount(tx, sessionId));
   });
 }
 
@@ -330,7 +342,7 @@ export async function addParticipant(sessionId: string, cardId: string): Promise
 
     // Скасувати всі активні записи кандидата (на інші співбесіди і невдалий запис сюди)
     if (records.length) {
-      await tx.query("UPDATE interview_participants SET registration_status = 'Cancelled' WHERE id = ANY($1::int[])", [records.map((r) => r.id)]);
+      await tx.query("UPDATE interview_participants SET registration_status = 'Cancelled', cancel_reason = 'rebooked_manually' WHERE id = ANY($1::int[])", [records.map((r) => r.id)]);
     }
     // Співбесіди, з яких кандидата забрали, знову мають вільне місце
     if (oldSessionIds.length) {
@@ -339,7 +351,7 @@ export async function addParticipant(sessionId: string, cardId: string): Promise
     const participant = (
       await tx.query<ParticipantRow>(
         `INSERT INTO interview_participants (keycrm_id, name, phone, session_id, registration_status, keycrm_sync, sync_error)
-         VALUES ($1, $2, $3, $4, 'Confirmed', 'Pending', '') RETURNING *`,
+         VALUES ($1, $2, $3, $4, 'Confirmed', 'Pending', '') RETURNING *`, // ручний запис менеджером — одразу підтверджено
         [cardId, cardName(card!), cardPhone(card!), sessionId],
       )
     ).rows[0];
@@ -350,7 +362,7 @@ export async function addParticipant(sessionId: string, cardId: string): Promise
   });
 
   const dir = await loadResponsibles();
-  const session = shapeSession(booked.session, booked.newCount, dir);
+  const session = shapeSession(booked.session, booked.newCount, dir, (await query<{ n: number }>("SELECT count(*)::int AS n FROM interview_participants WHERE session_id = $1 AND registration_status = 'Confirmed'", [sessionId]))[0].n);
   try {
     await writeInterviewTime(cardId, iso(booked.session.start_date)!);
   } catch (e) {

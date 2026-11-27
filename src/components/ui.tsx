@@ -86,10 +86,23 @@ export function Pill({ tone, children }: { tone: 'blue' | 'green' | 'orange' | '
   return <span className={cx('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset', tones[tone])}>{children}</span>;
 }
 
+/** «· 2 бронь» — скільки місць зайнято бронями, які ще не підтверджені. */
+export function ReservedNote({ session, className }: { session: Session; className?: string }) {
+  if (!session.reservedCount) return null;
+  return (
+    <span className={cx('whitespace-nowrap text-ink-muted', className)} title="Бронь: кандидат ще не підтвердив час голосовому агенту">
+      · {session.reservedCount} бронь
+    </span>
+  );
+}
+
 export function ProgressBar({ session, className }: { session: Session; className?: string }) {
   const pct = fillPercent(session);
   const state = displayState(session);
   const color = state === 'past' || state === 'closed' ? 'bg-ink-soft' : pct >= 100 ? 'bg-warning' : 'bg-success';
+  // Підтверджені — суцільна смуга, броні (ще не підтверджені) — та сама смуга, світліша
+  const max = session.maxParticipants > 0 ? session.maxParticipants : 1;
+  const confirmedPct = Math.min(pct, Math.round(((session.confirmedCount ?? session.currentCount) / max) * 100));
   return (
     <div
       className={cx('h-1.5 w-full overflow-hidden rounded-full bg-neutral-100', className)}
@@ -99,7 +112,10 @@ export function ProgressBar({ session, className }: { session: Session; classNam
       aria-valuenow={pct}
       aria-label={`Заповненість ${pct}%`}
     >
-      <div className={cx('h-full rounded-full transition-[width] duration-500', color)} style={{ width: `${pct}%` }} />
+      <div className="flex h-full overflow-hidden rounded-full transition-[width] duration-500" style={{ width: `${pct}%` }}>
+        <div className={cx('h-full', color)} style={{ width: pct ? `${(confirmedPct / pct) * 100}%` : 0 }} />
+        <div className={cx('h-full flex-1 opacity-40', color)} />
+      </div>
     </div>
   );
 }

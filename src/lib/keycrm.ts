@@ -98,7 +98,7 @@ export async function fetchCandidateCards(): Promise<{ cards: KeycrmCard[]; trun
 
 export async function fetchCard(cardId: string): Promise<KeycrmCard | null> {
   try {
-    const k = await keycrm<KeycrmCard | CardsPage>('GET', `/pipelines/cards/${encodeURIComponent(cardId)}?include=contact.client,status`);
+    const k = await keycrm<KeycrmCard | CardsPage>('GET', `/pipelines/cards/${encodeURIComponent(cardId)}?include=contact.client,status,custom_fields`);
     const card = Array.isArray((k as CardsPage)?.data) ? (k as CardsPage).data!.find((c) => String(c.id) === cardId) : (k as KeycrmCard);
     return card && String(card.id) === cardId ? card : null;
   } catch (e) {
@@ -110,6 +110,22 @@ export async function fetchCard(cardId: string): Promise<KeycrmCard | null> {
 /** Записує час співбесіди в поле картки. Статус картки не змінюється. */
 export async function writeInterviewTime(cardId: string, startIso: string): Promise<void> {
   await keycrm('PUT', `/pipelines/cards/${encodeURIComponent(cardId)}`, { custom_fields: [{ uuid: INTERVIEW_FIELD_UUID, value: interviewFieldValue(startIso) }] });
+}
+
+/**
+ * Очищає поле співбесіди. Документація KeyCRM не описує очищення, тому після запису картку перечитуємо:
+ * спершу value: null, якщо поле лишилось — порожній рядок; якщо й тоді заповнене — помилка.
+ */
+export async function clearInterviewTime(cardId: string): Promise<void> {
+  const path = `/pipelines/cards/${encodeURIComponent(cardId)}`;
+  for (const value of [null, '']) {
+    await keycrm('PUT', path, { custom_fields: [{ uuid: INTERVIEW_FIELD_UUID, value }] });
+    const card = await fetchCard(cardId);
+    if (!card) throw new KeycrmError('Картку KeyCRM не знайдено', 404);
+    const left = cardField(card, INTERVIEW_FIELD_UUID);
+    if (left === null || left === undefined || String(left).trim() === '') return;
+  }
+  throw new KeycrmError('KeyCRM не очистив поле співбесіди');
 }
 
 /** Значення поля співбесіди — той самий формат, що й у workflow бронювання. */

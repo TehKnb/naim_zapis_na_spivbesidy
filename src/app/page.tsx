@@ -6,7 +6,7 @@ import { PipelineDot } from '@/components/pipeline-filter';
 import { SessionCard } from '@/components/session-card';
 import { ResponsibleSummary } from '@/components/responsibles';
 import { useSessionForm } from '@/components/session-form';
-import { Button, Card, EmptyState, ErrorState, PageHeader, ProgressBar, SectionLabel, Skeleton, StatusBadge, cx } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorState, PageHeader, ProgressBar, ReservedNote, SectionLabel, Skeleton, StatusBadge, cx } from '@/components/ui';
 import { useSessions } from '@/hooks/use-sessions';
 import { isUpcoming, pluralSeats } from '@/lib/session-utils';
 import { formatDate, formatTime, formatWeekday } from '@/lib/time';
@@ -56,7 +56,7 @@ function NextSession({ session }: { session: Session }) {
           <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[15px] text-ink-muted">
             <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />{formatWeekday(session.startDate)}, {formatDate(session.startDate)}</span>
             <span className="inline-flex items-center gap-1.5"><Clock className="h-4 w-4" />{formatTime(session.startDate)}</span>
-            <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4" />{session.currentCount} / {session.maxParticipants} · {pluralSeats(session.availableSeats)}</span>
+            <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4" />{session.currentCount} / {session.maxParticipants} · {pluralSeats(session.availableSeats)}<ReservedNote session={session} /></span>
           </p>
           <ResponsibleSummary session={session} full className="mt-3 text-[15px] text-ink" />
           <ProgressBar session={session} className="mt-4 h-2 max-w-md" />

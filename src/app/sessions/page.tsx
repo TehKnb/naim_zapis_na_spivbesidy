@@ -9,7 +9,7 @@ import { matchesPipeline, PipelineFilter, type PipelineFilterValue } from '@/com
 import { ResponsibleStack, sessionResponsibles, shortName } from '@/components/responsibles';
 import { DateTile, PipelineStripe, SessionActions, SessionCard } from '@/components/session-card';
 import { pipelineColor } from '@/lib/pipeline-colors';
-import { Card, EmptyState, ErrorState, PageHeader, ProgressBar, Skeleton, StatusBadge, cx } from '@/components/ui';
+import { Card, EmptyState, ErrorState, PageHeader, ProgressBar, ReservedNote, Skeleton, StatusBadge, cx } from '@/components/ui';
 import { useSessions } from '@/hooks/use-sessions';
 import { displayState, LAST_SESSIONS_URL_KEY, pluralSeats, sortByDate, sortUpcomingFirst } from '@/lib/session-utils';
 import { formatDate, formatTime, formatWeekday } from '@/lib/time';
@@ -130,7 +130,7 @@ function SessionRow({ s }: { s: Session }) {
       <Responsibles s={s} />
       <div className="min-w-0">
         <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
-          <span className="flex items-center gap-1 font-semibold text-ink"><Users className="h-3.5 w-3.5 text-ink-muted" />{s.currentCount}/{s.maxParticipants}</span>
+          <span className="flex items-center gap-1 font-semibold text-ink"><Users className="h-3.5 w-3.5 text-ink-muted" />{s.currentCount}/{s.maxParticipants}<ReservedNote session={s} className="font-normal" /></span>
           <span className="truncate text-ink-muted">{pluralSeats(s.availableSeats)}</span>
         </div>
         <ProgressBar session={s} className="h-2" />

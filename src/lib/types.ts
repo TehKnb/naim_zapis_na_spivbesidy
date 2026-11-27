@@ -8,8 +8,12 @@ export interface Session {
   startDate: string;
   status: SessionStatus;
   maxParticipants: number;
-  /** Активні реєстрації (без Cancelled). */
+  /** Активні реєстрації (без Cancelled): бронь + підтверджені. */
   currentCount: number;
+  /** Підтверджені (кандидат підтвердив час агенту або записаний вручну). */
+  confirmedCount?: number;
+  /** Броні, які ще чекають підтвердження. */
+  reservedCount?: number;
   availableSeats: number;
   isPast: boolean;
   /** Воронка KeyCRM, для якої ця співбесіда. null — ще не прив'язано (стара сесія). */
@@ -23,6 +27,7 @@ export interface Session {
   updatedAt?: string | null;
 }
 
+/** Reserved — бронь (кандидат ще не підтвердив час), Confirmed — підтверджено, Cancelled — знято. */
 export type RegistrationStatus = 'Reserved' | 'Confirmed' | 'Cancelled';
 export type KeycrmSync = 'Pending' | 'Synced' | 'Failed';
 
@@ -33,6 +38,9 @@ export interface Participant {
   keycrmId: string;
   registrationStatus: RegistrationStatus | string;
   keycrmSync: KeycrmSync | string;
+  /** Причина скасування: agent_declined — відмова агенту, rebooked_manually — перезаписано вручну. */
+  cancelReason?: string;
+  confirmedAt?: string | null;
   createdAt?: string | null;
 }
 

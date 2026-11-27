@@ -7,7 +7,8 @@ import { authConfig, safeNextPath, SESSION_COOKIE, verifySessionToken } from '@/
  */
 
 // Доступні без входу
-const PUBLIC_API = new Set(['/api/auth/login', '/api/auth/logout', '/api/health']);
+// Webhook голосового агента — зовнішній виклик без входу (перевіряє власні дані, необов'язковий ?token=)
+const PUBLIC_API = new Set(['/api/auth/login', '/api/auth/logout', '/api/health', '/api/webhooks/voice-agent']);
 
 export async function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
