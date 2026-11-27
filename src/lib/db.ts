@@ -18,9 +18,12 @@ function connectionString(): string {
   return url;
 }
 
+let dbHost = '';
+
 function createPool(): Pool {
   const url = connectionString();
   const host = new URL(url).hostname;
+  dbHost = `${host}:${new URL(url).port || 5432}`;
   const plain = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.railway.internal') || process.env.DATABASE_SSL === 'disable';
   const pool = new Pool({
     connectionString: url,
@@ -49,6 +52,8 @@ export function asDbFailure(e: unknown): unknown {
   const err = e as { code?: string; message?: string };
   const msg = String(err?.message ?? '');
   if ((err?.code && CONNECTION_CODES.test(err.code)) || /timeout exceeded when trying to connect|Connection terminated/i.test(msg)) {
+    // Причина — у логах сервера (без пароля): напр. ENOTFOUND для *.railway.internal з іншого проєкту Railway
+    console.error(`[db] connection failed: ${err?.code ?? '-'} host=${dbHost || '?'} ${msg.replace(/postgres(ql)?:\/\/\S+/g, '[url]').slice(0, 200)}`);
     return new ApiFailure(503, 'DB_UNAVAILABLE', 'База даних тимчасово недоступна. Спробуйте ще раз за хвилину.');
   }
   return e;
